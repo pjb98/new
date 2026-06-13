@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChronicCity - Solana Weed Simulator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0f0a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+    }
+    #game-container {
+      position: relative;
+      width: 960px;
+      height: 640px;
+    }
+    canvas { display: block; }
+
+    /* HUD overlays */
+    #hud {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #wallet-bar {
+      position: absolute;
+      top: 8px; right: 8px;
+      display: flex; gap: 8px; align-items: center;
+      pointer-events: all;
+    }
+    .hud-badge {
+      background: rgba(0,20,0,0.85);
+      border: 1px solid #2d7a2d;
+      border-radius: 6px;
+      padding: 4px 10px;
+      color: #7fff7f;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+    }
+    #connect-btn {
+      background: #1a5c1a;
+      border: 1px solid #4caf50;
+      border-radius: 6px;
+      padding: 5px 12px;
+      color: #7fff7f;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #connect-btn:hover { background: #2d8a2d; }
+
+    /* Shop panel */
+    #shop-panel {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 520px;
+      background: rgba(5,15,5,0.97);
+      border: 2px solid #2d7a2d;
+      border-radius: 12px;
+      padding: 20px;
+      color: #b0ffb0;
+      font-family: 'Courier New', monospace;
+      z-index: 100;
+      display: none;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    #shop-panel h2 { color: #4caf50; margin-bottom: 14px; font-size: 18px; }
+    .shop-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+    .shop-tab {
+      padding: 5px 14px;
+      border: 1px solid #2d7a2d;
+      border-radius: 5px;
+      background: rgba(0,30,0,0.6);
+      color: #7fff7f;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+    }
+    .shop-tab.active { background: #1a5c1a; border-color: #4caf50; color: #fff; }
+    .shop-items { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .shop-item {
+      border: 1px solid #1a4a1a;
+      border-radius: 8px;
+      padding: 10px;
+      background: rgba(0,20,0,0.5);
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .shop-item:hover { border-color: #4caf50; }
+    .shop-item.owned { border-color: #2d7a2d; opacity: 0.7; cursor: default; }
+    .shop-item .name { font-size: 13px; color: #fff; margin-bottom: 4px; }
+    .shop-item .desc { font-size: 10px; color: #7fff7f; margin-bottom: 6px; }
+    .shop-item .price { font-size: 12px; color: #ffd700; }
+    .close-btn {
+      float: right;
+      background: none;
+      border: none;
+      color: #f77;
+      font-size: 18px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* Notification */
+    #notif {
+      position: absolute;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,40,0,0.9);
+      border: 1px solid #4caf50;
+      border-radius: 8px;
+      padding: 8px 18px;
+      color: #7fff7f;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+      z-index: 200;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    /* Grow panel */
+    #grow-panel {
+      position: absolute;
+      bottom: 8px; left: 8px;
+      background: rgba(5,15,5,0.9);
+      border: 1px solid #2d7a2d;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #b0ffb0;
+      font-size: 11px;
+      font-family: 'Courier New', monospace;
+      z-index: 10;
+      min-width: 180px;
+      pointer-events: all;
+    }
+    #grow-panel .label { color: #4caf50; font-size: 10px; margin-bottom: 4px; }
+    .progress-bar-outer {
+      background: #0a1f0a;
+      border: 1px solid #2d7a2d;
+      border-radius: 4px;
+      height: 8px;
+      margin: 3px 0 6px;
+      overflow: hidden;
+    }
+    .progress-bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, #2d7a2d, #4caf50);
+      transition: width 0.5s;
+    }
+
+    /* Controls hint */
+    #controls-hint {
+      position: absolute;
+      bottom: 8px; right: 8px;
+      background: rgba(5,15,5,0.8);
+      border: 1px solid #1a4a1a;
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: #5a9a5a;
+      font-size: 10px;
+      font-family: 'Courier New', monospace;
+      pointer-events: none;
+      line-height: 1.6;
+    }
+
+    /* Splash / wallet connect overlay */
+    #splash {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,10,0,0.97);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      color: #7fff7f;
+      font-family: 'Courier New', monospace;
+    }
+    #splash h1 {
+      font-size: 42px;
+      color: #4caf50;
+      text-shadow: 0 0 20px #2d7a2d;
+      margin-bottom: 8px;
+      letter-spacing: 4px;
+    }
+    #splash .sub { color: #5a9a5a; font-size: 14px; margin-bottom: 40px; }
+    #splash-connect-btn {
+      background: linear-gradient(135deg, #1a5c1a, #2d8a2d);
+      border: 2px solid #4caf50;
+      border-radius: 10px;
+      padding: 14px 40px;
+      color: #fff;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: all 0.2s;
+      box-shadow: 0 0 20px rgba(76,175,80,0.3);
+    }
+    #splash-connect-btn:hover {
+      background: linear-gradient(135deg, #2d8a2d, #4caf50);
+      box-shadow: 0 0 30px rgba(76,175,80,0.6);
+    }
+    #splash .demo-btn {
+      margin-top: 12px;
+      background: none;
+      border: 1px solid #2d7a2d;
+      border-radius: 8px;
+      padding: 8px 24px;
+      color: #5a9a5a;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      cursor: pointer;
+    }
+    #splash .demo-btn:hover { color: #7fff7f; border-color: #4caf50; }
+
+    /* Dialog box for NPC interactions */
+    #dialog-box {
+      position: absolute;
+      bottom: 70px; left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      background: rgba(5,15,5,0.97);
+      border: 2px solid #2d7a2d;
+      border-radius: 10px;
+      padding: 14px 18px;
+      color: #b0ffb0;
+      font-family: 'Courier New', monospace;
+      z-index: 50;
+      display: none;
+    }
+    #dialog-box .npc-name { color: #4caf50; font-size: 13px; margin-bottom: 6px; }
+    #dialog-box .dialog-text { font-size: 12px; line-height: 1.5; margin-bottom: 10px; }
+    .dialog-choices { display: flex; gap: 8px; flex-wrap: wrap; }
+    .dialog-choice {
+      border: 1px solid #2d7a2d;
+      border-radius: 5px;
+      padding: 4px 10px;
+      font-size: 11px;
+      color: #7fff7f;
+      cursor: pointer;
+      background: rgba(0,30,0,0.6);
+      font-family: 'Courier New', monospace;
+    }
+    .dialog-choice:hover { background: #1a5c1a; border-color: #4caf50; }
+
+    scrollbar-width: thin;
+    scrollbar-color: #2d7a2d #0a0f0a;
+  </style>
+</head>
+<body>
+<div id="game-container">
+  <!-- Phaser canvas goes here -->
+
+  <!-- Splash screen -->
+  <div id="splash">
+    <h1>🌿 CHRONIC CITY</h1>
+    <div class="sub">Solana-powered weed growing simulator</div>
+    <button id="splash-connect-btn">CONNECT PHANTOM WALLET</button>
+    <button class="demo-btn" id="demo-btn">PLAY DEMO (no wallet)</button>
+    <div style="margin-top:24px;font-size:10px;color:#2d7a2d;">
+      WASD / Arrow Keys to move &nbsp;|&nbsp; E to interact &nbsp;|&nbsp; B to open shop
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div id="wallet-bar">
+      <div class="hud-badge" id="sol-badge">◎ 0.00</div>
+      <div class="hud-badge" id="cash-badge">💵 $0</div>
+      <div class="hud-badge" id="stash-badge">🌿 0g</div>
+      <button id="connect-btn" style="display:none">Wallet</button>
+    </div>
+  </div>
+
+  <!-- Grow panel -->
+  <div id="grow-panel">
+    <div class="label">ACTIVE GROW</div>
+    <div id="strain-name" style="color:#fff;font-size:12px;margin-bottom:4px;">—</div>
+    <div class="label">GROWTH</div>
+    <div class="progress-bar-outer"><div class="progress-bar-inner" id="grow-bar" style="width:0%"></div></div>
+    <div id="grow-status" style="color:#5a9a5a;font-size:10px;">No plant growing</div>
+    <button id="harvest-btn" style="margin-top:6px;display:none;background:#1a5c1a;border:1px solid #4caf50;border-radius:4px;padding:3px 10px;color:#7fff7f;cursor:pointer;font-family:'Courier New',monospace;font-size:11px;">HARVEST</button>
+  </div>
+
+  <!-- Controls hint -->
+  <div id="controls-hint">
+    WASD Move &nbsp; E Interact<br>
+    B Shop &nbsp; H Home/Street
+  </div>
+
+  <!-- Shop panel -->
+  <div id="shop-panel">
+    <button class="close-btn" id="close-shop">✕</button>
+    <h2>🌿 CHRONIC CITY SHOP</h2>
+    <div class="shop-tabs">
+      <button class="shop-tab active" data-tab="strains">Strains</button>
+      <button class="shop-tab" data-tab="equipment">Equipment</button>
+      <button class="shop-tab" data-tab="locations">Locations</button>
+      <button class="shop-tab" data-tab="cosmetics">Cosmetics</button>
+    </div>
+    <div class="shop-items" id="shop-items-container"></div>
+  </div>
+
+  <!-- NPC Dialog -->
+  <div id="dialog-box">
+    <div class="npc-name" id="dialog-npc-name">Stranger</div>
+    <div class="dialog-text" id="dialog-text"></div>
+    <div class="dialog-choices" id="dialog-choices"></div>
+  </div>
+
+  <!-- Notification -->
+  <div id="notif" id="notif"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<script src="src/game.js"></script>
+</body>
+</html>
