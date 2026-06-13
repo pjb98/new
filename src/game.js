@@ -751,8 +751,8 @@ class StreetScene extends Phaser.Scene {
     // Player
     this.player = this.add.graphics();
     this.drawPlayer(this.player);
-    this.player.x = 100;
-    this.player.y = 380;
+    this.player.x = 120;
+    this.player.y = 305;
 
     // NPCs
     this.npcSprites = [];
@@ -794,9 +794,9 @@ class StreetScene extends Phaser.Scene {
     // NPC wander timer
     this.time.addEvent({ delay: 2000, loop: true, callback: this.wanderNPCs, callbackScope: this });
 
-    // Door back home
-    this.add.text(60, 360, '[ HOME ]', {
-      fontSize: '11px', color: '#4caf50', fontFamily: 'Courier New'
+    // Door back home label
+    this.add.text(6, 274, '[ HOME ]', {
+      fontSize: '10px', color: '#4caf50', fontFamily: 'Courier New'
     }).setDepth(3);
 
     // Interaction hint
@@ -809,53 +809,79 @@ class StreetScene extends Phaser.Scene {
   }
 
   drawStreet(g) {
-    // Sky / buildings bg
-    g.fillStyle(0x101820, 1);
-    g.fillRect(0, 0, W, 260);
+    const cols = Math.ceil(W / TILE), rows = Math.ceil(H / TILE);
 
-    // Buildings
+    // === SKY (rows 0-1): near-black ===
+    for (let x = 0; x < cols; x++) {
+      drawTile(g, x, 0, 0x030803, 0x070f07);
+      drawTile(g, x, 1, 0x060d06, 0x0d180d);
+    }
+
+    // === BUILDINGS (rows 1-7, varying heights) ===
+    // [tileX_start, tileX_end, topRow]  — all ground at row 7
     const bldgs = [
-      [30, 60, 120, 200, 0x1a1a2a],
-      [170, 40, 100, 220, 0x1a2a1a],
-      [290, 80, 130, 180, 0x2a1a1a],
-      [450, 50, 90, 210, 0x1a2a2a],
-      [570, 70, 110, 190, 0x1a1a3a],
-      [710, 30, 140, 230, 0x2a2a1a],
-      [880, 60, 80, 200, 0x1a2a1a],
+      [0, 3, 2], [5, 9, 1], [11, 14, 0],
+      [16, 20, 2], [22, 25, 1], [27, 29, 3],
     ];
-    bldgs.forEach(([x, y, w, h, c]) => {
-      g.fillStyle(c, 1);
-      g.fillRect(x, y, w, h);
-      // Windows
-      g.fillStyle(0xffff88, 0.4);
-      for (let wy = y + 10; wy < y + h - 10; wy += 25)
-        for (let wx = x + 10; wx < x + w - 8; wx += 22)
-          if (Math.random() > 0.4) g.fillRect(wx, wy, 12, 14);
+    bldgs.forEach(([x0, x1, topY]) => {
+      // Wall tiles
+      for (let x = x0; x <= x1; x++) {
+        for (let y = topY; y <= 7; y++) {
+          drawTile(g, x, y, 0x0f2a0f, 0x2d5a2d);
+        }
+      }
+      // Roof highlight
+      for (let x = x0; x <= x1; x++) {
+        drawTile(g, x, topY, 0x0a220a, 0x4caf50);
+      }
+      // Windows — deterministic pattern so they don't flicker
+      for (let x = x0 + 1; x < x1; x++) {
+        for (let y = topY + 1; y <= 6; y++) {
+          if ((x + y) % 2 === 0) {
+            const lit = (x * 3 + y * 7) % 5 !== 0;
+            drawTile(g, x, y, lit ? 0x2a5a1a : 0x0a1a0a, lit ? 0x4caf50 : 0x1a3a1a);
+          }
+        }
+      }
     });
 
-    // Sidewalk
-    g.fillStyle(0x2a2a2a, 1); g.fillRect(0, 260, W, 30);
-    g.fillStyle(0x3a3a3a, 1);
-    for (let x = 0; x < W; x += 60) g.fillRect(x, 260, 30, 3);
+    // === SIDEWALK (rows 8-9): identical floor tiles to home ===
+    for (let x = 0; x < cols; x++) {
+      for (let y = 8; y <= 9; y++) {
+        const c = (x + y) % 2 === 0 ? 0x0d1f0d : 0x0a180a;
+        drawTile(g, x, y, c, 0x1a3a1a);
+      }
+    }
 
-    // Road
-    g.fillStyle(0x1a1a1a, 1); g.fillRect(0, 290, W, 260);
-    // Lane markings
-    g.fillStyle(0xffd700, 0.6);
-    for (let x = 0; x < W; x += 80) g.fillRect(x, 418, 50, 6);
+    // === CURB (row 10): wall-style divider ===
+    for (let x = 0; x < cols; x++) {
+      drawTile(g, x, 10, 0x1a3a1a, 0x2d5a2d);
+    }
 
-    // Curb
-    g.fillStyle(0x555, 1); g.fillRect(0, 290, W, 6);
+    // === ROAD (rows 11-19): dark soil-like tiles ===
+    for (let x = 0; x < cols; x++) {
+      for (let y = 11; y < rows; y++) {
+        const c = (x + y) % 3 === 0 ? 0x08100a : 0x060d08;
+        drawTile(g, x, y, c, 0x0d180d);
+      }
+    }
 
-    // Street lamps
-    [100, 300, 500, 700, 900].forEach(x => {
-      g.fillStyle(0x444, 1); g.fillRect(x, 200, 5, 90);
-      g.fillStyle(0xffff88, 0.8); g.fillCircle(x + 2, 200, 14);
+    // Lane markings (row 14): lighter tile every 4 cols
+    for (let x = 2; x < cols; x += 4) {
+      drawTile(g, x, 14, 0x1a3a1a, 0x2d5a2d);
+    }
+
+    // === STREET LAMPS (one tile head, one tile pole) ===
+    [4, 9, 15, 20, 25].forEach(lx => {
+      drawTile(g, lx, 7, 0x1a4a1a, 0x4caf50);  // lamp head
+      drawTile(g, lx, 8, 0x122212, 0x2d5a2d);  // pole on sidewalk
     });
 
-    // Home door (left)
-    g.fillStyle(0x1a4a1a, 1); g.fillRect(30, 290, 50, 80);
-    g.fillStyle(0x4caf50, 1); g.fillRect(50, 330, 8, 8);
+    // === HOME DOOR (left edge, sidewalk rows) ===
+    drawTile(g, 0, 8, 0x1a4a1a, 0x4caf50);
+    drawTile(g, 0, 9, 0x1a4a1a, 0x4caf50);
+    drawTile(g, 1, 8, 0x153015, 0x3a8a3a);
+    drawTile(g, 1, 9, 0x153015, 0x3a8a3a);
   }
 
   drawPlayer(g) { drawDealer(g, 5); }
@@ -868,7 +894,7 @@ class StreetScene extends Phaser.Scene {
       const data = {
         npc, g,
         x: 150 + i * 130,
-        y: 320 + (i % 2) * 30,
+        y: 295 + (i % 2) * 25,
         dx: (Math.random() - 0.5) * 0.5,
         dy: 0,
         colorIdx: i,
@@ -940,7 +966,7 @@ class StreetScene extends Phaser.Scene {
     }
 
     this.player.x = Phaser.Math.Clamp(this.player.x + dx, 30, W - 30);
-    this.player.y = Phaser.Math.Clamp(this.player.y + dy, 280, 540);
+    this.player.y = Phaser.Math.Clamp(this.player.y + dy, 270, 500);
 
     if (dx < 0) this.player.scaleX = -1;
     else if (dx > 0) this.player.scaleX = 1;
