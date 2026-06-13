@@ -28,6 +28,9 @@ const G = {
   // Multipliers
   yieldMult: 1,
   speedMult: 1,
+
+  // Last house entered (index into STREET_HOUSES)
+  lastHouseIdx: 0,
 };
 
 // ---------- Shop Catalog ----------
@@ -368,6 +371,27 @@ function drawDealer(g, depth) {
 
 const TILE = 32;
 const W = 960, H = 640;
+
+// ========================
+// STREET HOUSES & COLLIDERS
+// ========================
+const STREET_HOUSES = [
+  { x:1,  y:1, w:4, h:5, name:'Casa Verde',   wall:0xcc8844, wallB:0xaa6622, roof:0x993322, roofB:0xcc5533 },
+  { x:7,  y:0, w:5, h:6, name:'Blue House',   wall:0xccaa66, wallB:0xaa8844, roof:0x336699, roofB:0x4488cc },
+  { x:14, y:1, w:4, h:5, name:'Peach Place',  wall:0xdd9966, wallB:0xbb7744, roof:0x336633, roofB:0x44aa44 },
+  { x:20, y:1, w:5, h:5, name:'Beige Manor',  wall:0xccbbaa, wallB:0xaa9988, roof:0x993322, roofB:0xcc5533 },
+  { x:27, y:2, w:3, h:4, name:'Yellow Brick', wall:0xeedd99, wallB:0xccbb66, roof:0x774422, roofB:0xaa6633 },
+];
+const HOUSE_COLLIDERS = STREET_HOUSES.map(h => ({
+  left: h.x * TILE, top: h.y * TILE,
+  right: (h.x + h.w) * TILE, bottom: (h.y + h.h) * TILE,
+}));
+const HOUSE_DOORS = STREET_HOUSES.map((h, i) => ({
+  x: (h.x + Math.floor(h.w / 2)) * TILE + 16,
+  y: (h.y + h.h) * TILE,
+  houseIdx: i,
+  name: h.name,
+}));
 
 // ---- Tilemap helper: draw colored rects as tiles ----
 function drawTile(g, x, y, color, border) {
@@ -851,13 +875,7 @@ class StreetScene extends Phaser.Scene {
     }
 
     // === HOUSES (tile walls + roofs) ===
-    [
-      { x:1,  y:1, w:4, h:5, wall:0xcc8844, wallB:0xaa6622, roof:0x993322, roofB:0xcc5533 },
-      { x:7,  y:0, w:5, h:6, wall:0xccaa66, wallB:0xaa8844, roof:0x336699, roofB:0x4488cc },
-      { x:14, y:1, w:4, h:5, wall:0xdd9966, wallB:0xbb7744, roof:0x336633, roofB:0x44aa44 },
-      { x:20, y:1, w:5, h:5, wall:0xccbbaa, wallB:0xaa9988, roof:0x993322, roofB:0xcc5533 },
-      { x:27, y:2, w:3, h:4, wall:0xeedd99, wallB:0xccbb66, roof:0x774422, roofB:0xaa6633 },
-    ].forEach(h => {
+    STREET_HOUSES.forEach((h, hi) => {
       // Roof row
       for (let x = h.x; x < h.x + h.w; x++) drawTile(g, x, h.y, h.roof, h.roofB);
       // Walls
@@ -866,7 +884,11 @@ class StreetScene extends Phaser.Scene {
       // Windows (row below roof)
       for (let x = h.x; x < h.x + h.w; x++) drawTile(g, x, h.y + 1, 0xaaddff, 0x5599cc);
       // Door (center, bottom row)
-      drawTile(g, Math.floor(h.x + h.w / 2), h.y + h.h - 1, 0x5a3010, 0x8a5030);
+      const doorTileX = Math.floor(h.x + h.w / 2);
+      drawTile(g, doorTileX, h.y + h.h - 1, 0x5a3010, 0x8a5030);
+      // Door knob
+      g.fillStyle(0xffd700, 1);
+      g.fillCircle((doorTileX + 0.7) * TILE + 6, (h.y + h.h - 0.35) * TILE, 3);
     });
 
     // === TREES (drawn over tiles) ===
@@ -995,18 +1017,53 @@ class StreetScene extends Phaser.Scene {
       }
     }
 
-    this.player.x = Phaser.Math.Clamp(this.player.x + dx, 30, W - 30);
-    this.player.y = Phaser.Math.Clamp(this.player.y + dy, 270, 500);
+    let nx = Phaser.Math.Clamp(this.player.x + dx, 30, W - 30);
+    let ny = Phaser.Math.Clamp(this.player.y + dy, 100, 500);
+
+    // House collision — slide along walls
+    const PR = 16;
+    for (const col of HOUSE_COLLIDERS) {
+      const inX = nx + PR > col.left && nx - PR < col.right;
+      const inY = ny + PR > col.top  && ny - PR < col.bottom;
+      if (inX && inY) {
+        const oxInX = this.player.x + PR > col.left && this.player.x - PR < col.right;
+        const oyInY = this.player.y + PR > col.top  && this.player.y - PR < col.bottom;
+        if (!oxInX) nx = this.player.x;
+        if (!oyInY) ny = this.player.y;
+        if (oxInX && oyInY) { nx = this.player.x; ny = this.player.y; }
+      }
+    }
+
+    this.player.x = nx;
+    this.player.y = ny;
 
     if (dx < 0) this.player.scaleX = -1;
     else if (dx > 0) this.player.scaleX = 1;
 
+    // House door proximity — enter with E or click
+    let nearDoor = null, nearDoorDist = 50;
+    for (const door of HOUSE_DOORS) {
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, door.x, door.y);
+      if (dist < nearDoorDist) { nearDoor = door; nearDoorDist = dist; }
+    }
+    if (nearDoor) {
+      this.interactHint.setPosition(nearDoor.x - 20, nearDoor.y - 50).setVisible(true).setText('[E] Enter');
+      if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
+        G.lastHouseIdx = nearDoor.houseIdx;
+        this.scene.start('IndoorScene'); return;
+      }
+      if (this.moveTarget && Math.abs(this.moveTarget.x - nearDoor.x) < 60 && Math.abs(this.moveTarget.y - nearDoor.y) < 60) {
+        this.moveTarget = null; this.clickMarker.clear();
+        G.lastHouseIdx = nearDoor.houseIdx;
+        this.scene.start('IndoorScene'); return;
+      }
+    }
+
     // Door home — click on it or press H/E near it
     if (this.player.x < 90 && this.player.y > 290 && this.player.y < 380) {
-      if (Phaser.Input.Keyboard.JustDown(this.hKey) || Phaser.Input.Keyboard.JustDown(this.eKey)) {
+      if (Phaser.Input.Keyboard.JustDown(this.hKey) || (!nearDoor && Phaser.Input.Keyboard.JustDown(this.eKey))) {
         this.scene.start('HomeScene'); return;
       }
-      // Auto-enter if click-moving into the door area
       if (this.moveTarget && this.moveTarget.x < 90) {
         this.moveTarget = null; this.clickMarker.clear();
         this.scene.start('HomeScene'); return;
@@ -1018,9 +1075,9 @@ class StreetScene extends Phaser.Scene {
     // NPC proximity
     const near = this.findNearbyNPC();
     if (near) {
-      this.interactHint.setPosition(near.x - 20, near.y - 50).setVisible(true);
-      if (Phaser.Input.Keyboard.JustDown(this.eKey)) this.talkToNPC(near.npc);
-    } else {
+      if (!nearDoor) this.interactHint.setPosition(near.x - 20, near.y - 50).setVisible(true).setText('[E] Talk');
+      if (Phaser.Input.Keyboard.JustDown(this.eKey) && !nearDoor) this.talkToNPC(near.npc);
+    } else if (!nearDoor) {
       this.interactHint.setVisible(false);
     }
   }
@@ -1056,6 +1113,186 @@ class StreetScene extends Phaser.Scene {
 }
 
 // ========================
+// INDOOR SCENE
+// ========================
+class IndoorScene extends Phaser.Scene {
+  constructor() { super('IndoorScene'); }
+
+  create() {
+    const h = STREET_HOUSES[G.lastHouseIdx] || STREET_HOUSES[0];
+
+    const bg = this.add.graphics();
+    this.drawRoom(bg, h);
+
+    // Player starts near the bottom door
+    this.player = this.add.graphics();
+    this.player.x = W / 2;
+    this.player.y = H - 100;
+    drawDealer(this.player, 5);
+    this.player.setDepth(5);
+
+    // Indoor NPC
+    const npcInfo = NPCS[G.lastHouseIdx % NPCS.length];
+    const npcStyle = NPC_STYLES[G.lastHouseIdx % NPC_STYLES.length];
+    this.npcX = W / 2 + 140;
+    this.npcY = H / 2 + 20;
+    const npcG = this.add.graphics();
+    npcG.x = this.npcX; npcG.y = this.npcY;
+    drawChar(npcG, npcStyle, 4);
+    npcG.setDepth(4);
+
+    this.add.text(this.npcX, this.npcY - 42, npcInfo.name, {
+      fontSize: '10px', color: '#7fff7f', fontFamily: 'Courier New',
+      backgroundColor: 'rgba(0,0,0,0.6)', padding: { x: 3, y: 1 },
+    }).setOrigin(0.5).setDepth(6);
+
+    // House name
+    this.add.text(W / 2, 18, h.name, {
+      fontSize: '14px', color: '#ffeeaa', fontFamily: 'Courier New',
+      backgroundColor: 'rgba(0,0,0,0.6)', padding: { x: 6, y: 3 },
+    }).setOrigin(0.5).setDepth(10);
+
+    // Interact / exit hint
+    this.interactHint = this.add.text(0, 0, '[E]', {
+      fontSize: '11px', color: '#ffff88', fontFamily: 'Courier New',
+      backgroundColor: 'rgba(0,0,0,0.7)', padding: { x: 4, y: 2 },
+    }).setOrigin(0.5).setDepth(10).setVisible(false);
+
+    // Controls
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.wasd = {
+      left:  this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+      right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+      up:    this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+      down:  this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+    };
+    this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.npcInfo = npcInfo;
+
+    // Click-to-move
+    this.moveTarget = null;
+    this.clickMarker = this.add.graphics();
+    this.input.on('pointerdown', (ptr) => {
+      this.moveTarget = { x: ptr.x, y: ptr.y };
+      this.clickMarker.clear();
+      this.clickMarker.lineStyle(2, 0x44cc44, 0.8);
+      this.clickMarker.strokeCircle(ptr.x, ptr.y, 8);
+    });
+  }
+
+  drawRoom(g, h) {
+    // Floor — warm wood planks
+    for (let tx = 0; tx < 30; tx++)
+      for (let ty = 0; ty < 20; ty++)
+        drawTile(g, tx, ty, (tx + ty) % 2 === 0 ? 0xcc7a2a : 0xb86820, 0x8a4a10);
+
+    // Walls — use house colors
+    for (let tx = 0; tx < 30; tx++) {
+      for (let ty = 0; ty < 3; ty++) drawTile(g, tx, ty, h.wall, h.wallB);
+      drawTile(g, tx, 18, h.wall, h.wallB);
+      drawTile(g, tx, 19, h.wall, h.wallB);
+    }
+    for (let ty = 0; ty < 20; ty++) {
+      drawTile(g, 0,  ty, h.wall, h.wallB);
+      drawTile(g, 1,  ty, h.wall, h.wallB);
+      drawTile(g, 28, ty, h.wall, h.wallB);
+      drawTile(g, 29, ty, h.wall, h.wallB);
+    }
+    // Door gap in bottom wall (center)
+    for (let tx = 13; tx <= 16; tx++) {
+      drawTile(g, tx, 18, 0x44cc44, 0x88ff88);
+      drawTile(g, tx, 19, 0x44cc44, 0x88ff88);
+    }
+    // Rug
+    g.fillStyle(0x993322, 0.55);
+    g.fillRoundedRect(160, 160, 480, 240, 12);
+    g.fillStyle(0xcc4433, 0.35);
+    g.fillRoundedRect(180, 180, 440, 200, 8);
+    // Table
+    g.fillStyle(0x8b5a2b, 1);
+    g.fillRoundedRect(W / 2 - 80, H / 2 - 30, 160, 60, 6);
+    g.lineStyle(2, 0x5a3010, 1);
+    g.strokeRoundedRect(W / 2 - 80, H / 2 - 30, 160, 60, 6);
+    // Chairs
+    g.fillStyle(0x6b3a1b, 1);
+    g.fillRoundedRect(W / 2 - 112, H / 2 - 20, 28, 40, 4);
+    g.fillRoundedRect(W / 2 + 84,  H / 2 - 20, 28, 40, 4);
+    // Windows on top wall
+    [W / 4, 3 * W / 4].forEach(wx => {
+      g.fillStyle(0xaaddff, 1);
+      g.fillRect(wx - 24, 36, 48, 40);
+      g.lineStyle(2, 0x5599cc, 1);
+      g.strokeRect(wx - 24, 36, 48, 40);
+      g.lineStyle(1, 0x5599cc, 0.7);
+      g.lineBetween(wx, 36, wx, 76);
+      g.lineBetween(wx - 24, 56, wx + 24, 56);
+    });
+    // Decorative plant in corner
+    g.fillStyle(0x3a1a00, 1); g.fillCircle(96, H - 140, 18);
+    g.fillStyle(0x338811, 1); g.fillCircle(96, H - 175, 20);
+    g.fillStyle(0x44aa22, 1); g.fillCircle(86, H - 170, 14); g.fillCircle(106, H - 170, 14);
+    g.fillStyle(0x55cc33, 1); g.fillCircle(96, H - 185, 12);
+  }
+
+  update() {
+    const speed = 2.5;
+    let dx = 0, dy = 0;
+    let usingKeys = false;
+
+    if (this.cursors.left.isDown  || this.wasd.left.isDown)  { dx -= speed; usingKeys = true; }
+    if (this.cursors.right.isDown || this.wasd.right.isDown) { dx += speed; usingKeys = true; }
+    if (this.cursors.up.isDown    || this.wasd.up.isDown)    { dy -= speed; usingKeys = true; }
+    if (this.cursors.down.isDown  || this.wasd.down.isDown)  { dy += speed; usingKeys = true; }
+
+    if (usingKeys) {
+      this.moveTarget = null;
+      this.clickMarker.clear();
+    } else if (this.moveTarget) {
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.moveTarget.x, this.moveTarget.y);
+      if (dist < 4) { this.moveTarget = null; this.clickMarker.clear(); }
+      else {
+        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.moveTarget.x, this.moveTarget.y);
+        dx = Math.cos(angle) * speed;
+        dy = Math.sin(angle) * speed;
+      }
+    }
+
+    this.player.x = Phaser.Math.Clamp(this.player.x + dx, 70, W - 70);
+    this.player.y = Phaser.Math.Clamp(this.player.y + dy, 100, H - 50);
+
+    if (dx < 0) this.player.scaleX = -1;
+    else if (dx > 0) this.player.scaleX = 1;
+
+    // Exit through door at bottom center
+    const atDoor = this.player.y > H - 82 && this.player.x > W / 2 - 80 && this.player.x < W / 2 + 80;
+    if (atDoor) {
+      this.interactHint.setPosition(W / 2, H - 95).setVisible(true).setText('[E] Exit');
+      if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
+        this.scene.start('StreetScene'); return;
+      }
+      if (this.moveTarget && this.moveTarget.y > H - 100) {
+        this.moveTarget = null; this.clickMarker.clear();
+        this.scene.start('StreetScene'); return;
+      }
+    } else {
+      // NPC proximity
+      const distNPC = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.npcX, this.npcY);
+      if (distNPC < 70) {
+        this.interactHint.setPosition(this.npcX, this.npcY - 52).setVisible(true).setText('[E] Talk');
+        if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
+          showDialog(this.npcInfo.name,
+            this.npcInfo.dialog[Math.floor(Math.random() * this.npcInfo.dialog.length)],
+            [{ text: 'Peace out', action: closeDialog }]
+          );
+        }
+      } else {
+        this.interactHint.setVisible(false);
+      }
+    }
+  }
+}
+
+// ========================
 // PHASER CONFIG
 // ========================
 const config = {
@@ -1064,7 +1301,7 @@ const config = {
   height: H,
   parent: 'game-container',
   backgroundColor: '#0a0f0a',
-  scene: [HomeScene, StreetScene],
+  scene: [HomeScene, StreetScene, IndoorScene],
 };
 
 let game;
