@@ -192,7 +192,8 @@ function drawChar(g, style, depth) {
 
   // Mouth
   g.lineStyle(1.5, 0x7a4a2a, 1);
-  g.strokeArc(0, -25, 4, 0.2, Math.PI - 0.2);
+  g.arc(0, -25, 4, 0.2, Math.PI - 0.2, false);
+  g.strokePath();
 
   if (depth !== undefined) g.setDepth(depth);
 }
