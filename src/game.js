@@ -227,9 +227,144 @@ function drawFanLeaf(g, cx, cy, dirDeg, size, leaflets) {
   }
 }
 
-// ========================
-// PHASER GAME
-// ========================
+// Dedicated player sprite: hood up, shades, gold chain, Jordans
+function drawDealer(g, depth) {
+  g.clear();
+
+  // === HIGH-TOP JORDANS ===
+  // Left
+  g.fillStyle(0x111111, 1);
+  g.fillRect(-14, -2, 11, 10);           // high ankle
+  g.fillStyle(0xcc2200, 1);
+  g.fillRoundedRect(-15, 5, 13, 9, {tl:1,tr:3,bl:2,br:2});
+  g.fillStyle(0x111111, 1);
+  g.fillRoundedRect(-15, 5, 13, 5, {tl:1,tr:3,bl:0,br:0});
+  g.fillStyle(0xeeeeee, 1);
+  g.fillRoundedRect(-16, 12, 15, 3, 2);  // sole
+  g.fillStyle(0xdddddd, 0.9);
+  g.fillRect(-13, 6, 8, 1); g.fillRect(-13, 8, 8, 1); g.fillRect(-13, 10, 8, 1);
+  // Right
+  g.fillStyle(0x111111, 1);
+  g.fillRect(3, -2, 11, 10);
+  g.fillStyle(0xcc2200, 1);
+  g.fillRoundedRect(2, 5, 13, 9, {tl:3,tr:1,bl:2,br:2});
+  g.fillStyle(0x111111, 1);
+  g.fillRoundedRect(2, 5, 13, 5, {tl:3,tr:1,bl:0,br:0});
+  g.fillStyle(0xeeeeee, 1);
+  g.fillRoundedRect(1, 12, 15, 3, 2);
+  g.fillStyle(0xdddddd, 0.9);
+  g.fillRect(5, 6, 8, 1); g.fillRect(5, 8, 8, 1); g.fillRect(5, 10, 8, 1);
+
+  // === SWEATPANTS (baggy black, white stripe) ===
+  g.fillStyle(0x111111, 1);
+  g.fillRect(-14, -7, 12, 11);
+  g.fillRect(2,   -7, 12, 11);
+  g.fillStyle(0xffffff, 1);
+  g.fillRect(-14, -7, 2, 11);   // left stripe
+  g.fillRect(12,  -7, 2, 11);   // right stripe
+
+  // === BAGGY HOODIE BODY ===
+  g.fillStyle(0x151515, 1);
+  g.fillRoundedRect(-15, -23, 30, 19, 5);
+  // Kangaroo pocket
+  g.fillStyle(0x0a0a0a, 1);
+  g.fillRoundedRect(-9, -16, 18, 12, 3);
+  g.fillStyle(0x1f1f1f, 1);
+  g.fillRect(-1, -16, 2, 12);   // pocket divider seam
+  // Drawstring holes
+  g.fillStyle(0x333333, 1);
+  g.fillCircle(-3, -24, 1.5);
+  g.fillCircle(3,  -24, 1.5);
+  // Drawstrings hanging down
+  g.lineStyle(1, 0x555555, 1);
+  g.lineBetween(-3, -22, -5, -14);
+  g.lineBetween(3,  -22,  5, -14);
+
+  // === ARMS (baggy) ===
+  g.fillStyle(0x151515, 1);
+  g.fillRoundedRect(-26, -22, 12, 18, {tl:4,tr:2,bl:5,br:2});
+  g.fillRoundedRect(14,  -22, 12, 18, {tl:2,tr:4,bl:2,br:5});
+  g.fillStyle(0x0a0a0a, 1);
+  g.fillRect(-26, -6, 12, 3);   // left cuff
+  g.fillRect(14,  -6, 12, 3);   // right cuff
+
+  // === HANDS ===
+  g.fillStyle(0xc49060, 1);
+  g.fillRoundedRect(-26, -3, 12, 7, 3);
+  g.fillRoundedRect(14,  -3, 12, 7, 3);
+
+  // === GOLD CHAIN ===
+  g.fillStyle(0xffd700, 1);
+  for (let i = -9; i <= 9; i += 3) {
+    g.fillCircle(i, -19 + Math.abs(i) * 0.25, 1.6);
+  }
+  // Pendant (leaf shape)
+  g.fillStyle(0xffaa00, 1);
+  g.fillCircle(0, -13, 4);
+  g.fillStyle(0xffd700, 1);
+  g.fillCircle(0, -13, 2.5);
+  g.fillStyle(0x1a1a00, 0.5);
+  g.fillCircle(0, -13, 1);     // inner engraving
+
+  // === NECK ===
+  g.fillStyle(0xc49060, 1);
+  g.fillRect(-4, -27, 8, 7);
+
+  // === HEAD (skin) ===
+  g.fillStyle(0xc49060, 1);
+  g.fillRoundedRect(-12, -48, 24, 24, 8);
+
+  // === HOOD UP ===
+  // Outer hood
+  g.fillStyle(0x111111, 1);
+  g.fillRoundedRect(-16, -52, 32, 22, {tl:14,tr:14,bl:0,br:0});
+  // Hood side panels (cover sides of face)
+  g.fillRect(-16, -42, 6, 20);
+  g.fillRect(10,  -42, 6, 20);
+  // Inner hood shadow
+  g.fillStyle(0x080808, 1);
+  g.fillRoundedRect(-13, -50, 26, 16, {tl:12,tr:12,bl:0,br:0});
+  // Face opening (reveal skin)
+  g.fillStyle(0xc49060, 1);
+  g.fillRoundedRect(-9, -46, 18, 22, 5);
+
+  // === DARK SUNGLASSES ===
+  // Lenses
+  g.fillStyle(0x0a1520, 1);
+  g.fillRoundedRect(-10, -41, 9, 7, {tl:2,tr:3,bl:2,br:1});
+  g.fillRoundedRect(1,  -41, 9, 7, {tl:3,tr:2,bl:1,br:2});
+  // Blue tint reflections
+  g.fillStyle(0x1a4a7a, 0.6);
+  g.fillRoundedRect(-10, -41, 9, 7, {tl:2,tr:3,bl:2,br:1});
+  g.fillRoundedRect(1,  -41, 9, 7, {tl:3,tr:2,bl:1,br:2});
+  // Glare streak
+  g.fillStyle(0xffffff, 0.22);
+  g.fillRoundedRect(-9, -41, 4, 2, 1);
+  g.fillRoundedRect(2,  -41, 4, 2, 1);
+  // Gold frames
+  g.lineStyle(1.8, 0xccaa22, 1);
+  g.strokeRoundedRect(-10, -41, 9, 7, {tl:2,tr:3,bl:2,br:1});
+  g.strokeRoundedRect(1,  -41, 9, 7, {tl:3,tr:2,bl:1,br:2});
+  g.lineBetween(-1, -37, 1, -37);    // nose bridge
+  g.lineBetween(-14, -37, -10, -37); // left temple
+  g.lineBetween(10,  -37, 14, -37);  // right temple
+
+  // === STUBBLE / BEARD SHADOW ===
+  g.fillStyle(0x4a3020, 0.45);
+  for (let sx = -5; sx <= 5; sx += 2) g.fillRect(sx, -32, 1, 2);
+  for (let sx = -4; sx <= 4; sx += 2) g.fillRect(sx, -30, 1, 1);
+  // Mustache area
+  g.fillStyle(0x3a2010, 0.5);
+  g.fillRoundedRect(-5, -34, 10, 3, 1);
+
+  // === MOUTH (mean mug) ===
+  g.lineStyle(1.5, 0x6a3a1a, 1);
+  g.lineBetween(-4, -29, 4, -29);   // flat tough expression
+
+  if (depth !== undefined) g.setDepth(depth);
+}
+
+
 
 const TILE = 32;
 const W = 960, H = 640;
@@ -355,7 +490,7 @@ class HomeScene extends Phaser.Scene {
     for (let x = 2; x <= 5; x++) for (let y = 6; y <= 9; y++) drawTile(g, x, y, 0x111a11, 0x1a2d1a);
   }
 
-  drawPlayer(g) { drawChar(g, PLAYER_STYLE, 5); }
+  drawPlayer(g) { drawDealer(g, 5); }
 
   updatePlantSprite() {
     this.drawPlantStage(G.plant ? this.growPercent() : 0);
@@ -723,7 +858,7 @@ class StreetScene extends Phaser.Scene {
     g.fillStyle(0x4caf50, 1); g.fillRect(50, 330, 8, 8);
   }
 
-  drawPlayer(g) { drawChar(g, PLAYER_STYLE, 5); }
+  drawPlayer(g) { drawDealer(g, 5); }
 
   drawNPC(g, npc) { drawChar(g, NPC_STYLES[npc.colorIdx % NPC_STYLES.length], 4); }
 
