@@ -77,6 +77,156 @@ const NPCS = [
 ];
 
 // ========================
+// CHARACTER & PLANT DRAWING
+// ========================
+
+const PLAYER_STYLE = {
+  body: 0x2d7a2d, bodyDark: 0x1f5a1f,
+  pants: 0x1a1a3a, shoes: 0xffffff, shoeLace: 0x333333,
+  skin: 0xd4a373, hair: 0x111111, hat: true, glasses: false,
+};
+
+const NPC_STYLES = [
+  { body:0x2a5a9a, bodyDark:0x1a3a7a, pants:0x111133, shoes:0xee3333, shoeLace:0xffffff, skin:0xd4a373, hair:0x111111, hat:true,  glasses:false },
+  { body:0x9a2a2a, bodyDark:0x7a1a1a, pants:0x22224a, shoes:0xeeeeee, shoeLace:0x333333, skin:0x8d5524, hair:0x1a0800, hat:false, glasses:true  },
+  { body:0x7a2a9a, bodyDark:0x5a1a7a, pants:0x112211, shoes:0x111111, shoeLace:0x44cc44, skin:0xffdbac, hair:0x885533, hat:false, glasses:false },
+  { body:0x9a9a22, bodyDark:0x7a7a11, pants:0x111111, shoes:0x4444dd, shoeLace:0xffffff, skin:0xf1c27d, hair:0x443322, hat:true,  glasses:false },
+  { body:0x229a6a, bodyDark:0x117a4a, pants:0x221100, shoes:0xcc8800, shoeLace:0xffffff, skin:0xe0ac69, hair:0x111111, hat:false, glasses:false },
+  { body:0x9a4422, bodyDark:0x7a3311, pants:0x001122, shoes:0x22cc22, shoeLace:0x111111, skin:0xd4a373, hair:0x220000, hat:true,  glasses:true  },
+];
+
+function drawChar(g, style, depth) {
+  g.clear();
+  const s = style;
+
+  // Shoes
+  g.fillStyle(s.shoes, 1);
+  g.fillRoundedRect(-13, 8, 11, 7, {tl:1, tr:3, bl:1, br:2});
+  g.fillRoundedRect(2,   8, 11, 7, {tl:3, tr:1, bl:2, br:1});
+  g.fillStyle(0x888888, 1);
+  g.fillRect(-14, 13, 13, 2);
+  g.fillRect(1,   13, 13, 2);
+  g.fillStyle(s.shoeLace || 0xffffff, 1);
+  g.fillRect(-12, 9, 8, 1); g.fillRect(-12, 11, 8, 1);
+  g.fillRect(3,   9, 8, 1); g.fillRect(3,   11, 8, 1);
+
+  // Pants
+  g.fillStyle(s.pants, 1);
+  g.fillRect(-12, -3, 10, 13);
+  g.fillRect(2,   -3, 10, 13);
+  g.fillStyle(0x2a1500, 1);
+  g.fillRect(-12, -5, 24, 3);
+  g.fillStyle(0xaa8844, 1);
+  g.fillRect(-3, -5, 6, 3);
+
+  // Hoodie body
+  g.fillStyle(s.body, 1);
+  g.fillRoundedRect(-13, -18, 26, 18, 4);
+  g.fillStyle(s.bodyDark, 1);
+  g.fillTriangle(0, -11, -8, -18, 8, -18);
+  g.fillRoundedRect(-7, -12, 14, 9, 2);
+
+  // Arms
+  g.fillStyle(s.body, 1);
+  g.fillRoundedRect(-22, -17, 10, 14, {tl:3, tr:2, bl:4, br:2});
+  g.fillRoundedRect(12,  -17, 10, 14, {tl:2, tr:3, bl:2, br:4});
+  g.fillStyle(s.bodyDark, 1);
+  g.fillRect(-22, -5, 10, 2);
+  g.fillRect(12,  -5, 10, 2);
+
+  // Hands
+  g.fillStyle(s.skin, 1);
+  g.fillRoundedRect(-22, -3, 10, 7, 3);
+  g.fillRoundedRect(12,  -3, 10, 7, 3);
+
+  // Neck
+  g.fillStyle(s.skin, 1);
+  g.fillRect(-4, -22, 8, 6);
+
+  // Head
+  g.fillStyle(s.skin, 1);
+  g.fillRoundedRect(-12, -42, 24, 23, 8);
+
+  // Hat or hair
+  g.fillStyle(s.hair, 1);
+  if (s.hat) {
+    g.fillRoundedRect(-13, -42, 26, 11, {tl:8, tr:8, bl:0, br:0});
+    g.fillRoundedRect(-17, -33, 34, 5,  {tl:1, tr:1, bl:2, br:2});
+    g.fillStyle(0x4caf50, 1);
+    g.fillCircle(0, -40, 2);
+  } else {
+    g.fillRoundedRect(-12, -42, 24, 12, {tl:8, tr:8, bl:0, br:0});
+  }
+
+  // Glasses (drawn before eyes so eyes render on top)
+  if (s.glasses) {
+    g.lineStyle(2, 0xccaa44, 1);
+    g.strokeRoundedRect(-10, -36, 9, 8, 2);
+    g.strokeRoundedRect(1,   -36, 9, 8, 2);
+    g.lineBetween(-1, -32, 1, -32);
+    g.lineBetween(-14, -32, -10, -32);
+    g.lineBetween(10,  -32, 14,  -32);
+    g.fillStyle(0xaaddff, 0.2);
+    g.fillRoundedRect(-10, -36, 9, 8, 2);
+    g.fillRoundedRect(1,   -36, 9, 8, 2);
+  }
+
+  // Eyes
+  g.fillStyle(0xffffff, 1);
+  g.fillEllipse(-5, -31, 8, 7);
+  g.fillEllipse(5,  -31, 8, 7);
+  g.fillStyle(0x3a2a1a, 1);
+  g.fillCircle(-5, -31, 2.8);
+  g.fillCircle(5,  -31, 2.8);
+  g.fillStyle(0x000000, 1);
+  g.fillCircle(-5, -31, 1.4);
+  g.fillCircle(5,  -31, 1.4);
+  g.fillStyle(0xffffff, 1);
+  g.fillCircle(-4, -32, 0.8);
+  g.fillCircle(6,  -32, 0.8);
+
+  // Eyebrows
+  g.lineStyle(2, s.hair, 0.9);
+  g.lineBetween(-9, -37, -2, -36);
+  g.lineBetween(2,  -36,  9, -37);
+
+  // Mouth
+  g.lineStyle(1.5, 0x7a4a2a, 1);
+  g.strokeArc(0, -25, 4, 0.2, Math.PI - 0.2);
+
+  if (depth !== undefined) g.setDepth(depth);
+}
+
+// Single pointed cannabis leaflet drawn from its base (cx,cy) outward
+function drawLeaflet(g, cx, cy, angleDeg, length, width) {
+  const rad  = Phaser.Math.DegToRad(angleDeg);
+  const cos  = Math.cos(rad), sin = Math.sin(rad);
+  const pcos = Math.cos(rad + Math.PI / 2);
+  const psin = Math.sin(rad + Math.PI / 2);
+  g.fillPoints([
+    { x: cx, y: cy },
+    { x: cx + cos * length * 0.5 + pcos * width * 0.5, y: cy + sin * length * 0.5 + psin * width * 0.5 },
+    { x: cx + cos * length, y: cy + sin * length },
+    { x: cx + cos * length * 0.5 - pcos * width * 0.5, y: cy + sin * length * 0.5 - psin * width * 0.5 },
+  ], true);
+  g.lineStyle(0.7, 0x1a5a00, 0.7);
+  g.lineBetween(cx, cy, cx + cos * length * 0.8, cy + sin * length * 0.8);
+}
+
+// Fan of leaflets radiating from (cx,cy), centered on dirDeg
+function drawFanLeaf(g, cx, cy, dirDeg, size, leaflets) {
+  const spread = 140;
+  const leafColors = [0x2d9a00, 0x259500, 0x2a8a00, 0x228800, 0x1f7a00, 0x2d9000, 0x229500];
+  for (let i = 0; i < leaflets; i++) {
+    const t = leaflets > 1 ? i / (leaflets - 1) - 0.5 : 0;
+    const angleDeg = dirDeg + t * spread;
+    const len = size * (1 - Math.abs(t) * 0.28);
+    g.fillStyle(leafColors[i % leafColors.length], 1);
+    drawLeaflet(g, cx, cy, angleDeg, len, len * 0.22);
+  }
+}
+
+// ========================
 // PHASER GAME
 // ========================
 
@@ -111,10 +261,17 @@ class HomeScene extends Phaser.Scene {
     this.player.y = 300;
 
     // ---- Plant sprite ----
-    this.plantG = this.add.text(280, 370, '🌱', { fontSize: '28px' }).setDepth(2);
-    this.plantG.setInteractive({ useHandCursor: true });
+    this.plantG = this.add.graphics().setDepth(2);
+    this.plantG.x = 290;
+    this.plantG.y = 430;
+    this.plantG.setInteractive({
+      hitArea: new Phaser.Geom.Rectangle(-44, -90, 88, 120),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+      useHandCursor: true,
+    });
     this.plantG.on('pointerdown', () => this.interactPlant());
-    this.updatePlantSprite();
+    this.plantTween = null;
+    this.drawPlantStage(0);
 
     // ---- Cosmetic items ----
     this.cosmeticSprites = [];
@@ -197,31 +354,114 @@ class HomeScene extends Phaser.Scene {
     for (let x = 2; x <= 5; x++) for (let y = 6; y <= 9; y++) drawTile(g, x, y, 0x111a11, 0x1a2d1a);
   }
 
-  drawPlayer(g) {
-    g.clear();
-    // Body
-    g.fillStyle(0x2d8a2d, 1);
-    g.fillRect(-10, -14, 20, 26);
-    // Head
-    g.fillStyle(0xd4a373, 1);
-    g.fillCircle(0, -20, 10);
-    // Eyes
-    g.fillStyle(0x111, 1);
-    g.fillCircle(-4, -21, 2);
-    g.fillCircle(4, -21, 2);
-    g.setDepth(5);
-  }
+  drawPlayer(g) { drawChar(g, PLAYER_STYLE, 5); }
 
   updatePlantSprite() {
-    if (!G.plant) {
-      this.plantG.setText('🪴');
-      return;
+    this.drawPlantStage(G.plant ? this.growPercent() : 0);
+  }
+
+  drawPlantStage(pct) {
+    const g = this.plantG;
+    g.clear();
+
+    // Ceramic pot
+    g.fillStyle(0xaa6633, 1);
+    g.fillPoints([{x:-19,y:30},{x:19,y:30},{x:15,y:8},{x:-15,y:8}], true);
+    g.fillStyle(0xcc8844, 1);
+    g.fillRect(-21, 5, 42, 6);
+    g.fillStyle(0x8a4a22, 1);
+    g.fillEllipse(0, 30, 40, 11);
+    // Soil surface
+    g.fillStyle(0x3a2000, 1);
+    g.fillEllipse(0, 8, 30, 8);
+    g.fillStyle(0x4a2a00, 1);
+    g.fillEllipse(-5, 7, 9, 3);
+    g.fillEllipse(6, 9, 6, 2);
+
+    if (!G.plant && pct === 0) return;
+
+    if (pct < 0.15) {
+      // Seedling — two cotyledon leaves
+      g.lineStyle(2, 0x2a7a00, 1);
+      g.lineBetween(0, 6, 0, -12);
+      g.fillStyle(0x3aaa00, 1);
+      g.fillEllipse(-8, -9, 13, 5);
+      g.fillEllipse(8,  -9, 13, 5);
+      g.fillStyle(0x5acc00, 1);
+      g.fillCircle(0, -12, 3);
+
+    } else if (pct < 0.4) {
+      // Young plant — first true fan leaves
+      g.lineStyle(3, 0x2a7a00, 1);
+      g.lineBetween(0, 6, 0, -32);
+      drawFanLeaf(g, 0, -10, -90, 18, 3);
+      drawFanLeaf(g, 0, -24, -90, 14, 3);
+      g.fillStyle(0x3aaa00, 1);
+      g.fillCircle(0, -32, 4);
+
+    } else if (pct < 0.8) {
+      // Mature veg — branching, 5-leaflet fans
+      g.lineStyle(4, 0x2a7a00, 1);
+      g.lineBetween(0, 6, 0, -55);
+      g.lineStyle(2, 0x2a7a00, 0.9);
+      g.lineBetween(0, -18, -14, -32);
+      g.lineBetween(0, -18, 14, -32);
+      drawFanLeaf(g, 0,   -6, -90, 26, 5);
+      drawFanLeaf(g, 0,  -28, -90, 22, 5);
+      drawFanLeaf(g, -14, -32, -135, 16, 3);
+      drawFanLeaf(g,  14, -32,  -45, 16, 3);
+      drawFanLeaf(g, 0,  -48, -90, 16, 3);
+      g.fillStyle(0x3aaa00, 1);
+      g.fillCircle(0, -55, 5);
+
+    } else {
+      // Flowering — full plant with colas + trichomes
+      // Glow halo
+      g.fillStyle(0x00ff44, 0.07);
+      g.fillCircle(0, -38, 58);
+      g.fillStyle(0x00ff44, 0.04);
+      g.fillCircle(0, -38, 72);
+
+      g.lineStyle(5, 0x2a7a00, 1);
+      g.lineBetween(0, 6, 0, -65);
+      g.lineStyle(3, 0x2a7a00, 0.9);
+      g.lineBetween(0, -18, -16, -34);
+      g.lineBetween(0, -18,  16, -34);
+      g.lineBetween(-16, -34, -20, -50);
+      g.lineBetween( 16, -34,  20, -50);
+
+      // Full fan leaves (7-leaflet)
+      drawFanLeaf(g, 0,    -6, -90, 30, 7);
+      drawFanLeaf(g, 0,   -30, -90, 26, 7);
+      drawFanLeaf(g, -16, -34, -140, 20, 5);
+      drawFanLeaf(g,  16, -34,  -40, 20, 5);
+      drawFanLeaf(g, -20, -50, -145, 15, 3);
+      drawFanLeaf(g,  20, -50,  -35, 15, 3);
+      drawFanLeaf(g, 0,   -56, -90, 18, 5);
+
+      // Main cola
+      g.fillStyle(0x3d8c00, 1);
+      g.fillEllipse(0, -68, 14, 20);
+      g.fillStyle(0x4aaa00, 1);
+      g.fillEllipse(0, -74, 10, 12);
+      g.fillStyle(0x5acc00, 1);
+      g.fillCircle(0, -78, 6);
+      // Side colas
+      g.fillStyle(0x3d8c00, 1);
+      g.fillEllipse(-20, -55, 10, 14);
+      g.fillEllipse( 20, -55, 10, 14);
+      // Orange pistils
+      g.lineStyle(1.2, 0xff8800, 0.9);
+      g.lineBetween(-2, -66, -5, -74);
+      g.lineBetween(2,  -66,  5, -74);
+      g.lineBetween(-1, -72, -4, -79);
+      g.lineBetween(1,  -72,  4, -79);
+      // Trichomes (white crystals)
+      g.fillStyle(0xffffff, 0.75);
+      [{x:-4,y:-66},{x:4,y:-66},{x:-6,y:-72},{x:6,y:-72},
+       {x:0,y:-78},{x:-2,y:-60},{x:2,y:-60},{x:-8,y:-55},{x:8,y:-55}]
+        .forEach(d => g.fillCircle(d.x, d.y, 1.6));
     }
-    const pct = this.growPercent();
-    if (pct < 0.25) this.plantG.setText('🌱');
-    else if (pct < 0.6) this.plantG.setText('🌿');
-    else if (pct < 1) this.plantG.setText('🌳');
-    else this.plantG.setText('🌲');
   }
 
   growPercent() {
@@ -239,6 +479,13 @@ class HomeScene extends Phaser.Scene {
       : `Growing... ${Math.floor(pct * 100)}%`;
     document.getElementById('harvest-btn').style.display = pct >= 1 ? 'block' : 'none';
     this.updatePlantSprite();
+    // Start pulsing glow tween when ready
+    if (pct >= 1 && !this.plantTween) {
+      this.plantTween = this.tweens.add({
+        targets: this.plantG, alpha: { from: 1, to: 0.65 },
+        yoyo: true, repeat: -1, duration: 700, ease: 'Sine.easeInOut',
+      });
+    }
     updateHUD();
   }
 
@@ -257,6 +504,7 @@ class HomeScene extends Phaser.Scene {
         growTime,
         yieldG: Math.floor(strain.yield * equip.yieldMult * (loc.yieldMult || 1)),
       };
+      this.drawPlantStage(0);
       notify(`🌱 Planted ${strain.name}! Grows in ~${growTime}s`);
       document.getElementById('strain-name').textContent = strain.name;
     } else if (this.growPercent() >= 1) {
@@ -275,7 +523,8 @@ class HomeScene extends Phaser.Scene {
     document.getElementById('grow-status').textContent = 'No plant growing';
     document.getElementById('harvest-btn').style.display = 'none';
     document.getElementById('strain-name').textContent = '—';
-    this.plantG.setText('🪴');
+    if (this.plantTween) { this.plantTween.stop(); this.plantTween = null; this.plantG.alpha = 1; }
+    this.drawPlantStage(0);
     notify(`🌿 Harvested ${y}g!`);
     updateHUD();
   }
@@ -473,22 +722,9 @@ class StreetScene extends Phaser.Scene {
     g.fillStyle(0x4caf50, 1); g.fillRect(50, 330, 8, 8);
   }
 
-  drawPlayer(g) {
-    g.clear();
-    g.fillStyle(0x1a5c1a, 1); g.fillRect(-10, -14, 20, 26);
-    g.fillStyle(0xd4a373, 1); g.fillCircle(0, -20, 10);
-    g.fillStyle(0x111, 1); g.fillCircle(-4, -21, 2); g.fillCircle(4, -21, 2);
-    g.setDepth(5);
-  }
+  drawPlayer(g) { drawChar(g, PLAYER_STYLE, 5); }
 
-  drawNPC(g, npc) {
-    g.clear();
-    const colors = [0x2a4a8a, 0x8a2a2a, 0x5a2a8a, 0x8a6a2a, 0x2a6a6a, 0x6a4a2a];
-    g.fillStyle(colors[npc.colorIdx % colors.length], 1); g.fillRect(-9, -13, 18, 24);
-    g.fillStyle(npc.skinColor, 1); g.fillCircle(0, -19, 9);
-    g.fillStyle(0x111, 1); g.fillCircle(-3, -20, 1.5); g.fillCircle(3, -20, 1.5);
-    g.setDepth(4);
-  }
+  drawNPC(g, npc) { drawChar(g, NPC_STYLES[npc.colorIdx % NPC_STYLES.length], 4); }
 
   spawnNPCs() {
     this.npcSprites = NPCS.map((npc, i) => {
