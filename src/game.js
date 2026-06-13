@@ -136,6 +136,20 @@ class HomeScene extends Phaser.Scene {
     this.bKeyDown = false;
     this.hKeyDown = false;
 
+    // ---- Click to move ----
+    this.moveTarget = null;
+    this.clickMarker = this.add.graphics().setDepth(10);
+    this.input.on('pointerdown', (ptr) => {
+      // Ignore clicks on HTML overlay elements
+      if (ptr.event.target !== this.sys.game.canvas) return;
+      this.moveTarget = { x: ptr.x, y: ptr.y };
+      this.clickMarker.clear();
+      this.clickMarker.lineStyle(2, 0x4caf50, 0.8);
+      this.clickMarker.strokeCircle(ptr.x, ptr.y, 8);
+      this.clickMarker.lineStyle(1, 0x4caf50, 0.4);
+      this.clickMarker.strokeCircle(ptr.x, ptr.y, 14);
+    });
+
     // ---- Grow timer ----
     this.time.addEvent({ delay: 1000, loop: true, callback: this.tickGrow, callbackScope: this });
 
@@ -292,18 +306,34 @@ class HomeScene extends Phaser.Scene {
   update() {
     const speed = 2.5;
     let dx = 0, dy = 0;
+    let usingKeys = false;
 
-    if (this.cursors.left.isDown  || this.wasd.left.isDown)  dx -= speed;
-    if (this.cursors.right.isDown || this.wasd.right.isDown) dx += speed;
-    if (this.cursors.up.isDown    || this.wasd.up.isDown)    dy -= speed;
-    if (this.cursors.down.isDown  || this.wasd.down.isDown)  dy += speed;
+    if (this.cursors.left.isDown  || this.wasd.left.isDown)  { dx -= speed; usingKeys = true; }
+    if (this.cursors.right.isDown || this.wasd.right.isDown) { dx += speed; usingKeys = true; }
+    if (this.cursors.up.isDown    || this.wasd.up.isDown)    { dy -= speed; usingKeys = true; }
+    if (this.cursors.down.isDown  || this.wasd.down.isDown)  { dy += speed; usingKeys = true; }
+
+    // Click-to-move: keys override click target
+    if (usingKeys) {
+      this.moveTarget = null;
+      this.clickMarker.clear();
+    } else if (this.moveTarget) {
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.moveTarget.x, this.moveTarget.y);
+      if (dist < 4) {
+        this.moveTarget = null;
+        this.clickMarker.clear();
+      } else {
+        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.moveTarget.x, this.moveTarget.y);
+        dx = Math.cos(angle) * speed;
+        dy = Math.sin(angle) * speed;
+      }
+    }
 
     const nx = Phaser.Math.Clamp(this.player.x + dx, TILE, W - TILE);
     const ny = Phaser.Math.Clamp(this.player.y + dy, TILE, H - TILE);
     this.player.x = nx;
     this.player.y = ny;
 
-    // Flip sprite on horizontal move
     if (dx < 0) this.player.scaleX = -1;
     else if (dx > 0) this.player.scaleX = 1;
 
@@ -316,13 +346,8 @@ class HomeScene extends Phaser.Scene {
       }
     } else this.hKeyDown = false;
 
-    // E key: interact with plant
     if (Phaser.Input.Keyboard.JustDown(this.eKey)) this.interactPlant();
-
-    // B key: shop
     if (Phaser.Input.Keyboard.JustDown(this.bKey)) openShop();
-
-    // H key: go to street
     if (Phaser.Input.Keyboard.JustDown(this.hKey)) this.scene.start('StreetScene');
   }
 }
@@ -361,6 +386,25 @@ class StreetScene extends Phaser.Scene {
     this.bKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
 
     this.nearNPC = null;
+
+    // Click to move
+    this.moveTarget = null;
+    this.clickMarker = this.add.graphics().setDepth(10);
+    this.input.on('pointerdown', (ptr) => {
+      if (ptr.event.target !== this.sys.game.canvas) return;
+      // Check if clicking near an NPC to talk
+      const near = this.findNearbyNPCAt(ptr.x, ptr.y);
+      if (near) {
+        this.talkToNPC(near.npc);
+        return;
+      }
+      this.moveTarget = { x: ptr.x, y: ptr.y };
+      this.clickMarker.clear();
+      this.clickMarker.lineStyle(2, 0x4caf50, 0.8);
+      this.clickMarker.strokeCircle(ptr.x, ptr.y, 8);
+      this.clickMarker.lineStyle(1, 0x4caf50, 0.4);
+      this.clickMarker.strokeCircle(ptr.x, ptr.y, 14);
+    });
 
     // NPC wander timer
     this.time.addEvent({ delay: 2000, loop: true, callback: this.wanderNPCs, callbackScope: this });
@@ -489,26 +533,55 @@ class StreetScene extends Phaser.Scene {
     return closest;
   }
 
+  findNearbyNPCAt(px, py) {
+    let closest = null, minDist = 40;
+    this.npcSprites.forEach(d => {
+      const dist = Phaser.Math.Distance.Between(px, py, d.x, d.y);
+      if (dist < minDist) { closest = d; minDist = dist; }
+    });
+    return closest;
+  }
+
   update() {
     const speed = 2.5;
     let dx = 0, dy = 0;
-    if (this.cursors.left.isDown  || this.wasd.left.isDown)  dx -= speed;
-    if (this.cursors.right.isDown || this.wasd.right.isDown) dx += speed;
-    if (this.cursors.up.isDown    || this.wasd.up.isDown)    dy -= speed;
-    if (this.cursors.down.isDown  || this.wasd.down.isDown)  dy += speed;
+    let usingKeys = false;
 
-    // Constrain to sidewalk/road area
+    if (this.cursors.left.isDown  || this.wasd.left.isDown)  { dx -= speed; usingKeys = true; }
+    if (this.cursors.right.isDown || this.wasd.right.isDown) { dx += speed; usingKeys = true; }
+    if (this.cursors.up.isDown    || this.wasd.up.isDown)    { dy -= speed; usingKeys = true; }
+    if (this.cursors.down.isDown  || this.wasd.down.isDown)  { dy += speed; usingKeys = true; }
+
+    if (usingKeys) {
+      this.moveTarget = null;
+      this.clickMarker.clear();
+    } else if (this.moveTarget) {
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.moveTarget.x, this.moveTarget.y);
+      if (dist < 4) {
+        this.moveTarget = null;
+        this.clickMarker.clear();
+      } else {
+        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.moveTarget.x, this.moveTarget.y);
+        dx = Math.cos(angle) * speed;
+        dy = Math.sin(angle) * speed;
+      }
+    }
+
     this.player.x = Phaser.Math.Clamp(this.player.x + dx, 30, W - 30);
     this.player.y = Phaser.Math.Clamp(this.player.y + dy, 280, 540);
 
     if (dx < 0) this.player.scaleX = -1;
     else if (dx > 0) this.player.scaleX = 1;
 
-    // Door home
+    // Door home — click on it or press H/E near it
     if (this.player.x < 90 && this.player.y > 290 && this.player.y < 380) {
       if (Phaser.Input.Keyboard.JustDown(this.hKey) || Phaser.Input.Keyboard.JustDown(this.eKey)) {
-        this.scene.start('HomeScene');
-        return;
+        this.scene.start('HomeScene'); return;
+      }
+      // Auto-enter if click-moving into the door area
+      if (this.moveTarget && this.moveTarget.x < 90) {
+        this.moveTarget = null; this.clickMarker.clear();
+        this.scene.start('HomeScene'); return;
       }
     }
     if (Phaser.Input.Keyboard.JustDown(this.hKey)) { this.scene.start('HomeScene'); return; }
