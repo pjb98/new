@@ -6,14 +6,12 @@
 const G = {
   wallet: null,
   solBalance: 0,
-  cash: 250,          // starting cash
-  stash: 0,           // grams on hand
-  scene: 'home',      // 'home' | 'street'
+  cash: 250,
+  stash: 0,
+  scene: 'street',
 
-  // Current grow
-  plant: null,        // { strain, startTime, growTime, yield }
+  plant: null,
 
-  // Owned items
   owned: {
     strains: ['Regular'],
     equipment: ['Soil Pot'],
@@ -25,11 +23,14 @@ const G = {
   activeEquipment: 'Soil Pot',
   activeLocation: 'Bedroom',
 
-  // Multipliers
   yieldMult: 1,
   speedMult: 1,
 
-  // Last house entered (index into STREET_HOUSES)
+  // Progression
+  homeHouseIdx: -1,       // -1 = not chosen yet
+  totalEarned: 0,         // lifetime $ earned from sales
+  unlockedNPCCount: 1,    // # of customer houses accessible (max 4)
+  totalSales: 0,          // total transactions completed
   lastHouseIdx: 0,
 };
 
@@ -392,6 +393,48 @@ const HOUSE_DOORS = STREET_HOUSES.map((h, i) => ({
   houseIdx: i,
   name: h.name,
 }));
+
+// NPC unlock thresholds — unlocked customer count after N total earned
+const NPC_UNLOCK_AT = [0, 0, 80, 250, 800]; // index = unlockedNPCCount needed
+
+function getCustomerHouseList() {
+  return [0, 1, 2, 3, 4].filter(i => i !== G.homeHouseIdx);
+}
+function getNPCForHouseIdx(houseIdx) {
+  const list = getCustomerHouseList();
+  const pos = list.indexOf(houseIdx);
+  return pos >= 0 ? NPCS[pos % NPCS.length] : null;
+}
+function isHouseCustomerUnlocked(houseIdx) {
+  const list = getCustomerHouseList();
+  const pos = list.indexOf(houseIdx);
+  return pos >= 0 && pos < G.unlockedNPCCount;
+}
+function checkProgressionUnlocks(scene) {
+  const thresholds = [0, 0, 80, 250, 800];
+  let newCount = 1;
+  for (let i = 1; i < thresholds.length; i++) {
+    if (G.totalSales >= 1 || G.totalEarned >= thresholds[i]) newCount = Math.max(newCount, i);
+  }
+  // Refine: unlock based on earned
+  newCount = 1;
+  if (G.totalSales >= 1)       newCount = Math.max(newCount, 2);
+  if (G.totalEarned >= 80)     newCount = Math.max(newCount, 3);
+  if (G.totalEarned >= 250)    newCount = Math.max(newCount, 4);
+  const cap = getCustomerHouseList().length;
+  newCount = Math.min(newCount, cap);
+  if (newCount > G.unlockedNPCCount) {
+    const added = newCount - G.unlockedNPCCount;
+    G.unlockedNPCCount = newCount;
+    const list = getCustomerHouseList();
+    const newHouseIdx = list[newCount - 1];
+    const npc = getNPCForHouseIdx(newHouseIdx);
+    if (npc && scene) {
+      notify(`🔓 New contact: ${npc.name} at ${STREET_HOUSES[newHouseIdx].name}!`);
+      scene.refreshNPCs && scene.refreshNPCs();
+    }
+  }
+}
 
 // ---- Tilemap helper: draw colored rects as tiles ----
 function drawTile(g, x, y, color, border) {
@@ -1016,14 +1059,18 @@ class StreetScene extends Phaser.Scene {
     // NPC wander timer
     this.time.addEvent({ delay: 2000, loop: true, callback: this.wanderNPCs, callbackScope: this });
 
-    // Door back home label
-    this.add.text(6, 274, '[ HOME ]', {
-      fontSize: '10px', color: '#ffffff', fontFamily: 'Courier New',
-      stroke: '#226622', strokeThickness: 3,
-    }).setDepth(3);
+    // Home selection banner (shown until player picks a house)
+    this.homeSelectBanner = this.add.text(W / 2, H / 2 - 40,
+      '🏠  Walk up to a house and press  [E]  to make it your home base',
+      {
+        fontSize: '14px', color: '#fffbe6', fontFamily: 'Courier New',
+        backgroundColor: 'rgba(0,0,0,0.78)', padding: { x: 16, y: 10 },
+        align: 'center', wordWrap: { width: 480 },
+      }
+    ).setOrigin(0.5).setDepth(50).setVisible(G.homeHouseIdx === -1);
 
     // Interaction hint
-    this.interactHint = this.add.text(0, 0, 'E: Talk', {
+    this.interactHint = this.add.text(0, 0, '[E]', {
       fontSize: '11px', color: '#ffd700', fontFamily: 'Courier New',
       backgroundColor: 'rgba(0,0,0,0.7)', padding: { x: 4, y: 2 }
     }).setDepth(10).setVisible(false);
@@ -1170,28 +1217,37 @@ class StreetScene extends Phaser.Scene {
   drawNPC(g, npc) { drawChar(g, NPC_STYLES[npc.colorIdx % NPC_STYLES.length], 4); }
 
   spawnNPCs() {
-    this.npcSprites = NPCS.map((npc, i) => {
+    this.npcSprites = [];
+    if (G.homeHouseIdx === -1) return; // no home chosen yet
+    const customerHouses = getCustomerHouseList();
+    const unlocked = customerHouses.slice(0, G.unlockedNPCCount);
+    unlocked.forEach((houseIdx, i) => {
+      const npc = NPCS[i % NPCS.length];
       const g = this.add.graphics();
       const data = {
         npc, g,
-        x: 150 + i * 130,
-        y: 295 + (i % 2) * 25,
-        dx: (Math.random() - 0.5) * 0.5,
-        dy: 0,
+        x: 150 + i * 155,
+        y: 305 + (i % 2) * 28,
+        dx: 0,
         colorIdx: i,
         skinColor: [0xd4a373, 0x8d5524, 0xffdbac, 0xf1c27d, 0xe0ac69][i % 5],
+        houseIdx,
       };
       g.x = data.x; g.y = data.y;
       this.drawNPC(g, data);
-
-      // Name label
       const label = this.add.text(data.x, data.y - 35, npc.name, {
         fontSize: '10px', color: '#7fff7f', fontFamily: 'Courier New',
         backgroundColor: 'rgba(0,0,0,0.6)', padding: { x: 3, y: 1 }
       }).setOrigin(0.5).setDepth(6);
       data.label = label;
-      return data;
+      this.npcSprites.push(data);
     });
+  }
+
+  refreshNPCs() {
+    // Destroy old sprites and re-spawn with updated unlock count
+    this.npcSprites.forEach(d => { d.g.destroy(); d.label.destroy(); });
+    this.spawnNPCs();
   }
 
   wanderNPCs() {
@@ -1271,52 +1327,81 @@ class StreetScene extends Phaser.Scene {
     if (dx < 0) this.player.scaleX = -1;
     else if (dx > 0) this.player.scaleX = 1;
 
-    // House door proximity — enter with E or click
-    let nearDoor = null, nearDoorDist = 50;
+    // === HOUSE DOOR PROXIMITY ===
+    let nearDoor = null, nearDoorDist = 55;
     for (const door of HOUSE_DOORS) {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, door.x, door.y);
       if (dist < nearDoorDist) { nearDoor = door; nearDoorDist = dist; }
     }
+
     if (nearDoor) {
-      this.interactHint.setPosition(nearDoor.x - 20, nearDoor.y - 50).setVisible(true).setText('[E] Enter');
-      if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
-        G.lastHouseIdx = nearDoor.houseIdx;
-        this.scene.start('IndoorScene'); return;
+      const ePressed = Phaser.Input.Keyboard.JustDown(this.eKey);
+      const clickedDoor = this.moveTarget &&
+        Math.abs(this.moveTarget.x - nearDoor.x) < 70 &&
+        Math.abs(this.moveTarget.y - nearDoor.y) < 70;
+
+      if (G.homeHouseIdx === -1) {
+        // ── HOME SELECTION MODE ──
+        this.interactHint.setPosition(nearDoor.x, nearDoor.y - 55)
+          .setVisible(true).setText('[E] Set as Home Base');
+        if (ePressed || clickedDoor) {
+          if (clickedDoor) { this.moveTarget = null; this.clickMarker.clear(); }
+          G.homeHouseIdx = nearDoor.houseIdx;
+          this.homeSelectBanner.setVisible(false);
+          notify(`🏠 ${STREET_HOUSES[G.homeHouseIdx].name} is your home base!`);
+          this.spawnNPCs();
+        }
+
+      } else if (nearDoor.houseIdx === G.homeHouseIdx) {
+        // ── ENTER YOUR OWN HOME ──
+        this.interactHint.setPosition(nearDoor.x, nearDoor.y - 55)
+          .setVisible(true).setText('[E] Enter Home');
+        if (ePressed || clickedDoor) {
+          if (clickedDoor) { this.moveTarget = null; this.clickMarker.clear(); }
+          this.scene.start('HomeScene'); return;
+        }
+
+      } else {
+        // ── KNOCK ON CUSTOMER'S DOOR ──
+        if (isHouseCustomerUnlocked(nearDoor.houseIdx)) {
+          this.interactHint.setPosition(nearDoor.x, nearDoor.y - 55)
+            .setVisible(true).setText('[E] Knock');
+          if (ePressed || clickedDoor) {
+            if (clickedDoor) { this.moveTarget = null; this.clickMarker.clear(); }
+            this.knockOnDoor(nearDoor.houseIdx);
+          }
+        } else {
+          const list = getCustomerHouseList();
+          const pos = list.indexOf(nearDoor.houseIdx);
+          const earned = [0, 0, 80, 250, 800][pos] || 800;
+          this.interactHint.setPosition(nearDoor.x, nearDoor.y - 55)
+            .setVisible(true).setText(`🔒 Unlock at $${earned} earned`);
+        }
       }
-      if (this.moveTarget && Math.abs(this.moveTarget.x - nearDoor.x) < 60 && Math.abs(this.moveTarget.y - nearDoor.y) < 60) {
-        this.moveTarget = null; this.clickMarker.clear();
-        G.lastHouseIdx = nearDoor.houseIdx;
-        this.scene.start('IndoorScene'); return;
-      }
+    } else {
+      this.interactHint.setVisible(false);
     }
 
-    // Door home — click on it or press H/E near it
-    if (this.player.x < 90 && this.player.y > 290 && this.player.y < 380) {
-      if (Phaser.Input.Keyboard.JustDown(this.hKey) || (!nearDoor && Phaser.Input.Keyboard.JustDown(this.eKey))) {
-        this.scene.start('HomeScene'); return;
-      }
-      if (this.moveTarget && this.moveTarget.x < 90) {
-        this.moveTarget = null; this.clickMarker.clear();
-        this.scene.start('HomeScene'); return;
-      }
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.hKey)) { this.scene.start('HomeScene'); return; }
     if (Phaser.Input.Keyboard.JustDown(this.bKey)) openShop();
 
-    // NPC proximity
-    const near = this.findNearbyNPC();
-    if (near) {
-      if (!nearDoor) this.interactHint.setPosition(near.x - 20, near.y - 50).setVisible(true).setText('[E] Talk');
-      if (Phaser.Input.Keyboard.JustDown(this.eKey) && !nearDoor) this.talkToNPC(near.npc);
-    } else if (!nearDoor) {
-      this.interactHint.setVisible(false);
+    // === NPC PROXIMITY (street wanderers) ===
+    if (!nearDoor) {
+      const near = this.findNearbyNPC();
+      if (near) {
+        this.interactHint.setPosition(near.x - 20, near.y - 50).setVisible(true).setText('[E] Talk');
+        if (Phaser.Input.Keyboard.JustDown(this.eKey)) this.talkToNPC(near.npc);
+      }
     }
   }
 
-  talkToNPC(npc) {
+  knockOnDoor(houseIdx) {
+    const npc = getNPCForHouseIdx(houseIdx);
+    if (!npc) return;
+    const houseName = STREET_HOUSES[houseIdx].name;
+    const knock = `*knock knock*\n\n"${npc.dialog[Math.floor(Math.random() * npc.dialog.length)]}"`;
     if (G.stash <= 0) {
-      showDialog(npc.name, npc.dialog[Math.floor(Math.random() * npc.dialog.length)] + '\n\n"...but you don\'t have anything on you."', [
-        { text: 'Later homie', action: closeDialog },
+      showDialog(`${npc.name}  🚪 ${houseName}`, knock + '\n\n"...you don\'t have anything on you tho."', [
+        { text: 'My bad', action: closeDialog },
       ]);
       return;
     }
@@ -1324,17 +1409,44 @@ class StreetScene extends Phaser.Scene {
     const want = Math.min(G.stash, Math.floor(Math.random() * (wantMax - wantMin + 1)) + wantMin);
     const pricePerG = Math.floor(Math.random() * (npc.pricePerG[1] - npc.pricePerG[0] + 1)) + npc.pricePerG[0];
     const total = want * pricePerG;
-
-    showDialog(npc.name,
-      `${npc.dialog[Math.floor(Math.random() * npc.dialog.length)]}\n\n"I'll take ${want}g for $${pricePerG}/g — that's $${total} total."`,
+    showDialog(`${npc.name}  🚪 ${houseName}`,
+      knock + `\n\n"I need ${want}g. Paying $${pricePerG}/g — $${total} total."`,
       [
-        {
-          text: `Sell ${want}g ($${total})`, action: () => {
-            G.stash -= want;
-            G.cash += total;
+        { text: `Sell ${want}g ($${total})`, action: () => {
+            G.stash -= want; G.cash += total;
+            G.totalEarned += total; G.totalSales++;
             closeDialog();
             notify(`💵 Sold ${want}g for $${total}!`);
             updateHUD();
+            checkProgressionUnlocks(this);
+          }
+        },
+        { text: 'Not right now', action: closeDialog },
+      ]
+    );
+  }
+
+  talkToNPC(npc) {
+    if (G.stash <= 0) {
+      showDialog(npc.name, npc.dialog[Math.floor(Math.random() * npc.dialog.length)] + '\n\n"...but you ain\'t got anything on you."', [
+        { text: 'Later', action: closeDialog },
+      ]);
+      return;
+    }
+    const wantMin = npc.want[0], wantMax = npc.want[1];
+    const want = Math.min(G.stash, Math.floor(Math.random() * (wantMax - wantMin + 1)) + wantMin);
+    const pricePerG = Math.floor(Math.random() * (npc.pricePerG[1] - npc.pricePerG[0] + 1)) + npc.pricePerG[0];
+    const total = want * pricePerG;
+    showDialog(npc.name,
+      `${npc.dialog[Math.floor(Math.random() * npc.dialog.length)]}\n\n"I'll take ${want}g for $${pricePerG}/g — that's $${total} total."`,
+      [
+        { text: `Sell ${want}g ($${total})`, action: () => {
+            G.stash -= want; G.cash += total;
+            G.totalEarned += total; G.totalSales++;
+            closeDialog();
+            notify(`💵 Sold ${want}g for $${total}!`);
+            updateHUD();
+            checkProgressionUnlocks(this);
           }
         },
         { text: 'No deal', action: closeDialog },
@@ -1532,7 +1644,7 @@ const config = {
   height: H,
   parent: 'game-container',
   backgroundColor: '#0a0f0a',
-  scene: [HomeScene, StreetScene, IndoorScene],
+  scene: [StreetScene, HomeScene, IndoorScene],
 };
 
 let game;
