@@ -459,6 +459,8 @@ class HomeScene extends Phaser.Scene {
     this.input.on('pointerdown', (ptr) => {
       // Ignore clicks on HTML overlay elements
       if (ptr.event.target !== this.sys.game.canvas) return;
+      // Ignore clicks while shop is open
+      if (document.getElementById('shop-panel').style.display !== 'none') return;
       this.moveTarget = { x: ptr.x, y: ptr.y };
       this.clickMarker.clear();
       this.clickMarker.lineStyle(2, 0x4caf50, 0.8);
@@ -803,21 +805,26 @@ class StreetScene extends Phaser.Scene {
 
     // Click to move
     this.moveTarget = null;
+    this.pendingTalkNPC = null;
     this.clickMarker = this.add.graphics().setDepth(10);
     this.input.on('pointerdown', (ptr) => {
       if (ptr.event.target !== this.sys.game.canvas) return;
-      // Check if clicking near an NPC to talk
+      // Ignore clicks while shop is open
+      if (document.getElementById('shop-panel').style.display !== 'none') return;
+      // Check if clicking near an NPC — walk to them, then talk
       const near = this.findNearbyNPCAt(ptr.x, ptr.y);
       if (near) {
-        this.talkToNPC(near.npc);
-        return;
+        this.pendingTalkNPC = near;
+        this.moveTarget = { x: near.x, y: near.y };
+      } else {
+        this.pendingTalkNPC = null;
+        this.moveTarget = { x: ptr.x, y: ptr.y };
       }
-      this.moveTarget = { x: ptr.x, y: ptr.y };
       this.clickMarker.clear();
       this.clickMarker.lineStyle(2, 0x4caf50, 0.8);
-      this.clickMarker.strokeCircle(ptr.x, ptr.y, 8);
+      this.clickMarker.strokeCircle(this.moveTarget.x, this.moveTarget.y, 8);
       this.clickMarker.lineStyle(1, 0x4caf50, 0.4);
-      this.clickMarker.strokeCircle(ptr.x, ptr.y, 14);
+      this.clickMarker.strokeCircle(this.moveTarget.x, this.moveTarget.y, 14);
     });
 
     // NPC wander timer
@@ -984,7 +991,7 @@ class StreetScene extends Phaser.Scene {
   }
 
   findNearbyNPCAt(px, py) {
-    let closest = null, minDist = 40;
+    let closest = null, minDist = 55;
     this.npcSprites.forEach(d => {
       const dist = Phaser.Math.Distance.Between(px, py, d.x, d.y);
       if (dist < minDist) { closest = d; minDist = dist; }
@@ -1004,12 +1011,14 @@ class StreetScene extends Phaser.Scene {
 
     if (usingKeys) {
       this.moveTarget = null;
+      this.pendingTalkNPC = null;
       this.clickMarker.clear();
     } else if (this.moveTarget) {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.moveTarget.x, this.moveTarget.y);
-      if (dist < 4) {
+      if (dist < 4 || (this.pendingTalkNPC && dist < 55)) {
         this.moveTarget = null;
         this.clickMarker.clear();
+        if (this.pendingTalkNPC) { this.talkToNPC(this.pendingTalkNPC.npc); this.pendingTalkNPC = null; }
       } else {
         const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.moveTarget.x, this.moveTarget.y);
         dx = Math.cos(angle) * speed;
