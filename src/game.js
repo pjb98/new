@@ -406,139 +406,153 @@ function drawTile(g, x, y, color, border) {
 function drawDetailedHouse(g, h) {
   const px = h.x * TILE, py = h.y * TILE;
   const pw = h.w * TILE, ph = h.h * TILE;
+  const sideW = 10; // visible right-side face width
 
-  // Drop shadow
-  g.fillStyle(0x000000, 0.2);
-  g.fillRect(px + 5, py + ph + 2, pw + 4, 10);
+  // === GROUND SHADOW ===
+  g.fillStyle(0x000000, 0.22);
+  g.fillRect(px + sideW + 3, py + ph + 2, pw, 10);
+  g.fillRect(px + pw + sideW, py + 10, 8, ph);
 
-  // === ROOF ===
-  const roofTop = py - 20;
-  const eaveBot = py + 8;
+  // === ROOF (top-down surface visible from above) ===
+  const roofH = Math.floor(ph * 0.30); // roof = top 30% of house area
+  // Roof surface
   g.fillStyle(h.roof, 1);
-  g.fillRect(px - 6, roofTop, pw + 12, eaveBot - roofTop);
-  // Shingle lines
-  g.fillStyle(h.roofB, 0.55);
-  for (let ry = roofTop + 8; ry < eaveBot; ry += 10)
-    g.fillRect(px - 6, ry, pw + 12, 4);
-  // Ridge cap
-  g.fillStyle(h.roofB, 1);
-  g.fillRect(px - 4, roofTop, pw + 8, 9);
-  // Fascia (eave edge)
-  g.fillStyle(h.roofB, 1);
-  g.fillRect(px - 6, eaveBot - 7, pw + 12, 7);
-  // Shadow under eave
-  g.fillStyle(0x000000, 0.2);
-  g.fillRect(px - 6, eaveBot, pw + 12, 5);
-
-  // Chimney (on wider houses)
+  g.fillRect(px - 4, py, pw + 4 + sideW, roofH);
+  // Shingle rows (horizontal lines)
+  g.fillStyle(h.roofB, 0.5);
+  for (let ry = 6; ry < roofH; ry += 9)
+    g.fillRect(px - 4, py + ry, pw + 4 + sideW, 4);
+  // Roof ridge (top edge — lighter)
+  g.fillStyle(0xffffff, 0.2);
+  g.fillRect(px - 4, py, pw + 4 + sideW, 5);
+  // Roof right-side slope (darker — shows angled right face)
+  g.fillStyle(0x000000, 0.25);
+  g.fillRect(px + pw, py, sideW, roofH);
+  // Chimney
   if (pw >= 128) {
-    const chX = px + pw - 36;
+    const chX = px + pw - 34;
     g.fillStyle(0xaa7755, 1);
-    g.fillRect(chX, roofTop - 14, 16, eaveBot - roofTop + 4);
+    g.fillRect(chX, py - 16, 18, roofH + 16);
     g.fillStyle(0x886644, 0.5);
-    for (let cy = roofTop - 14; cy < eaveBot; cy += 7) g.fillRect(chX, cy, 16, 2);
+    for (let cy = py - 16; cy < py + roofH; cy += 7) g.fillRect(chX, cy, 18, 2);
     g.fillStyle(0x776644, 1);
-    g.fillRect(chX - 2, roofTop - 16, 20, 6);
+    g.fillRect(chX - 2, py - 18, 22, 7);
     g.fillStyle(0x111111, 1);
-    g.fillRect(chX + 4, roofTop - 14, 8, 5);
+    g.fillRect(chX + 4, py - 16, 10, 5);
   }
 
-  // === WALL ===
-  const wallTop = eaveBot - 4;
-  const wallH = ph - 8;
+  // === EAVE (the key 3D cue — where roof meets wall) ===
+  const eaveY = py + roofH;
+  g.fillStyle(h.roofB, 1);
+  g.fillRect(px - 5, eaveY, pw + 5, 6);    // fascia board
+  g.fillStyle(0x000000, 0.35);
+  g.fillRect(px - 5, eaveY + 6, pw + 5, 10); // deep shadow under eave
+
+  // === VISIBLE SIDE FACE (right wall) ===
+  const sideTop = eaveY + 16;
+  const sideH = ph - roofH - 16;
+  // Side wall (darker shade of wall colour)
+  g.fillStyle(h.wallB, 1);
+  g.fillRect(px + pw, sideTop, sideW, sideH);
+  g.fillStyle(0x000000, 0.35);
+  g.fillRect(px + pw, sideTop, sideW, sideH);
+  // Side windows (small, one per floor)
+  const numSideWin = ph >= 160 ? 2 : 1;
+  for (let sw = 0; sw < numSideWin; sw++) {
+    const swY = sideTop + (sw === 0 ? 14 : Math.floor(sideH * 0.55));
+    g.fillStyle(h.wallB, 1);
+    g.fillRect(px + pw + 1, swY - 1, sideW - 2, 10);
+    g.fillStyle(0x88aacc, 1);
+    g.fillRect(px + pw + 2, swY, sideW - 4, 8);
+    g.fillStyle(0xffdd99, 0.5);
+    g.fillRect(px + pw + 2, swY, sideW - 4, 8);
+  }
+
+  // === FRONT FACADE (bottom 70% — the main visible face) ===
+  const facadeTop = eaveY + 16;
+  const facadeH = ph - roofH - 16;
+  // Main wall
   g.fillStyle(h.wall, 1);
-  g.fillRect(px, wallTop, pw, wallH);
-  // Brick/siding rows
-  const rowH = 8;
-  for (let ry = 0; ry < wallH; ry += rowH) {
-    g.fillStyle(h.wallB, Math.floor(ry / rowH) % 2 === 0 ? 0.2 : 0.08);
-    g.fillRect(px, wallTop + ry, pw, 2);
+  g.fillRect(px, facadeTop, pw, facadeH);
+  // Brick/siding texture
+  const bH = 8;
+  for (let ry = 0; ry < facadeH; ry += bH) {
+    g.fillStyle(h.wallB, Math.floor(ry / bH) % 2 === 0 ? 0.22 : 0.08);
+    g.fillRect(px, facadeTop + ry, pw, 2);
     g.fillStyle(h.wallB, 0.1);
-    const boff = (Math.floor(ry / rowH) % 2) * 20;
-    for (let bx = boff; bx < pw; bx += 40) g.fillRect(px + bx, wallTop + ry + 2, 1, rowH - 2);
+    const bOff = (Math.floor(ry / bH) % 2) * 22;
+    for (let bx = bOff; bx < pw; bx += 44)
+      g.fillRect(px + bx, facadeTop + ry + 2, 1, bH - 2);
   }
-  // Corner trim
+  // Corner boards
   g.fillStyle(0xffffff, 0.22);
-  g.fillRect(px, wallTop, 5, wallH);
-  g.fillRect(px + pw - 5, wallTop, 5, wallH);
-  g.fillStyle(0x000000, 0.18);
-  g.fillRect(px, wallTop, 1, wallH);
-  g.fillRect(px + pw - 1, wallTop, 1, wallH);
+  g.fillRect(px, facadeTop, 5, facadeH);
+  g.fillRect(px + pw - 5, facadeTop, 5, facadeH);
+  g.fillStyle(0x000000, 0.2);
+  g.fillRect(px, facadeTop, 1, facadeH);
+  g.fillRect(px + pw - 1, facadeTop, 1, facadeH);
 
-  // === WINDOWS ===
+  // === WINDOWS on facade ===
   const numCols = pw >= 160 ? 3 : pw >= 128 ? 2 : 1;
-  const numWRows = wallH >= 100 ? 2 : 1;
+  const numWRows = facadeH >= 110 ? 2 : 1;
   const winW = numCols >= 3 ? 20 : numCols >= 2 ? 22 : 28;
   const winH = 22;
   for (let wr = 0; wr < numWRows; wr++) {
-    const winY = wr === 0 ? wallTop + 16 : wallTop + wallH - 64;
+    const winRowY = wr === 0 ? facadeTop + 14 : facadeTop + facadeH - 68;
     for (let wc = 0; wc < numCols; wc++) {
       const winX = px + Math.round((wc + 0.5) * pw / numCols) - winW / 2;
-      // Sill
       g.fillStyle(0xddccbb, 1);
-      g.fillRect(winX - 4, winY + winH + 1, winW + 8, 5);
-      // Frame
+      g.fillRect(winX - 4, winRowY + winH + 1, winW + 8, 5); // sill
       g.fillStyle(h.wallB, 1);
-      g.fillRect(winX - 3, winY - 3, winW + 6, winH + 6);
-      // Glass + warm glow
+      g.fillRect(winX - 3, winRowY - 3, winW + 6, winH + 6); // frame
       g.fillStyle(0x88aacc, 1);
-      g.fillRect(winX, winY, winW, winH);
+      g.fillRect(winX, winRowY, winW, winH); // glass
       g.fillStyle(0xffdd99, 0.55);
-      g.fillRect(winX, winY, winW, winH);
-      // Pane dividers
-      g.fillStyle(h.wallB, 1);
-      g.fillRect(winX + Math.floor(winW / 2) - 1, winY, 2, winH);
-      g.fillRect(winX, winY + Math.floor(winH / 2) - 1, winW, 2);
-      // Reflection
-      g.fillStyle(0xffffff, 0.55);
-      g.fillRect(winX + 2, winY + 2, 5, 5);
-      g.fillStyle(0xffffff, 0.25);
-      g.fillRect(winX + 3, winY + 10, 3, 6);
+      g.fillRect(winX, winRowY, winW, winH); // warm glow
+      g.fillStyle(h.wallB, 1); // panes
+      g.fillRect(winX + Math.floor(winW / 2) - 1, winRowY, 2, winH);
+      g.fillRect(winX, winRowY + Math.floor(winH / 2) - 1, winW, 2);
+      g.fillStyle(0xffffff, 0.55); // reflection
+      g.fillRect(winX + 2, winRowY + 2, 5, 5);
     }
   }
 
   // === DOOR ===
-  const dW = 18, dH = 32;
+  const dW = 18, dH = Math.min(facadeH - 30, 34);
   const dX = px + Math.floor(pw / 2) - dW / 2;
-  const dY = wallTop + wallH - dH - 2;
-  // Transom
+  const dY = facadeTop + facadeH - dH - 2;
   g.fillStyle(h.wallB, 1);
-  g.fillRect(dX - 3, dY - 14, dW + 6, 14);
-  g.fillStyle(0x88aacc, 0.9);
-  g.fillRect(dX, dY - 11, dW, 10);
+  g.fillRect(dX - 3, dY - 12, dW + 6, 12); // transom frame
+  g.fillStyle(0x88aacc, 1);
+  g.fillRect(dX, dY - 9, dW, 8); // transom glass
   g.fillStyle(0xffdd99, 0.45);
-  g.fillRect(dX, dY - 11, dW, 10);
-  // Frame
+  g.fillRect(dX, dY - 9, dW, 8);
   g.fillStyle(h.wallB, 1);
-  g.fillRect(dX - 3, dY, dW + 6, dH + 4);
-  // Door surface
+  g.fillRect(dX - 3, dY, dW + 6, dH + 3); // door frame
   g.fillStyle(0x6a3820, 1);
-  g.fillRect(dX, dY, dW, dH);
+  g.fillRect(dX, dY, dW, dH); // door surface
   const panH = Math.floor((dH - 8) / 2);
   g.fillStyle(0x4a2810, 1);
   g.fillRect(dX + 2, dY + 2, dW - 4, panH);
   g.fillRect(dX + 2, dY + panH + 5, dW - 4, panH);
-  g.fillStyle(0x8a5030, 0.5);
+  g.fillStyle(0x8a5030, 0.45);
   g.fillRect(dX + 2, dY + 2, dW - 4, 2);
   g.fillRect(dX + 2, dY + panH + 5, dW - 4, 2);
-  // Knob
   g.fillStyle(0xffd700, 1);
   g.fillCircle(dX + dW - 4, dY + Math.floor(dH * 0.55), 3);
-  g.fillStyle(0xcc9900, 1);
-  g.fillCircle(dX + dW - 4, dY + Math.floor(dH * 0.55), 1.5);
 
   // === FOUNDATION + STEPS ===
   g.fillStyle(0x888878, 1);
-  g.fillRect(px - 2, wallTop + wallH, pw + 4, 9);
+  g.fillRect(px - 2, py + ph, pw + 4, 9);
   g.fillStyle(0xaaa898, 1);
-  g.fillRect(px - 2, wallTop + wallH, pw + 4, 3);
+  g.fillRect(px - 2, py + ph, pw + 4, 3);
   g.fillStyle(0x999988, 1);
-  g.fillRect(dX - 5, wallTop + wallH + 9, dW + 10, 6);
+  g.fillRect(dX - 5, py + ph + 9, dW + 10, 6);
   g.fillStyle(0xbbbbaa, 1);
-  g.fillRect(dX - 5, wallTop + wallH + 9, dW + 10, 2);
-  g.fillRect(dX - 8, wallTop + wallH + 15, dW + 16, 6);
+  g.fillRect(dX - 5, py + ph + 9, dW + 10, 2);
+  g.fillRect(dX - 8, py + ph + 15, dW + 16, 5);
   g.fillStyle(0xbbbbaa, 1);
-  g.fillRect(dX - 8, wallTop + wallH + 15, dW + 16, 2);
+  g.fillRect(dX - 8, py + ph + 15, dW + 16, 2);
 }
 
 function drawDetailedTree(g, tx, ty) {
@@ -1094,13 +1108,21 @@ class StreetScene extends Phaser.Scene {
     for (let dx = 0; dx < W; dx += 70) g.fillRect(dx, 13 * TILE + 6, 44, 3);
     for (let dx = 0; dx < W; dx += 70) g.fillRect(dx, 17 * TILE + 6, 44, 3);
 
-    // === HOUSES — detailed facades ===
+    // === BACKGROUND TREES (drawn before houses so houses appear in front) ===
+    // Positioned in gaps between houses: x safe zones 0-32, 160-224, 384-448, 576-640, 800-864
+    [
+      [12, 55], [192, 50], [416, 60], [608, 52], [832, 48],
+      [14, 120], [190, 135], [415, 118], [607, 128], [833, 122],
+    ].forEach(([tx, ty]) => drawDetailedTree(g, tx, ty));
+
+    // === HOUSES — 3D detailed facades (drawn over background trees) ===
     STREET_HOUSES.forEach(h => drawDetailedHouse(g, h));
 
-    // === TREES — multi-layer canopy ===
+    // === FOREGROUND TREES (in front of houses, between house row and sidewalk) ===
     [
-      [105,90],[225,55],[390,70],[555,95],[700,60],[860,80],
-      [55,185],[310,190],[480,155],[755,185],[920,115],[160,195],[635,170],
+      [12, 215], [192, 220], [415, 212], [607, 218], [832, 214],
+      [100, 232], [305, 225], [510, 228], [715, 222], [910, 220],
+      [155, 240], [660, 235],
     ].forEach(([tx, ty]) => drawDetailedTree(g, tx, ty));
 
     // === FOUNTAIN PLAZA ===
