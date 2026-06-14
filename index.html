@@ -259,6 +259,40 @@
 
     scrollbar-width: thin;
     scrollbar-color: #2d7a2d #0a0f0a;
+
+    /* Hotbar */
+    #hotbar {
+      position: absolute;
+      bottom: 50px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; gap: 6px;
+      pointer-events: all; z-index: 10;
+    }
+    .hotkey {
+      background: rgba(0,20,0,0.85);
+      border: 1px solid #2d7a2d; border-radius: 5px;
+      padding: 5px 12px; color: #5a9a5a;
+      font-size: 11px; font-family: 'Courier New', monospace;
+      cursor: pointer; transition: border-color 0.15s;
+      user-select: none;
+    }
+    .hotkey:hover { border-color: #4caf50; color: #7fff7f; }
+    .hotkey .key { color: #ffd700; font-weight: bold; }
+    /* Unlock progress */
+    #unlock-progress {
+      position: absolute;
+      top: 40px; left: 8px;
+      background: rgba(0,20,0,0.82);
+      border: 1px solid #1a4a1a; border-radius: 6px;
+      padding: 5px 10px; z-index: 10;
+      min-width: 170px; pointer-events: none;
+      font-family: 'Courier New', monospace;
+    }
+    #unlock-text { color: #5a9a5a; font-size: 9px; margin-top: 3px; }
+    /* Heat states */
+    @keyframes heat-pulse { to { box-shadow: 0 0 10px rgba(200,50,0,0.7); } }
+    .badge-hot { animation: heat-pulse 0.7s infinite alternate; border-color: #cc2200 !important; color: #ff6644 !important; }
+    .badge-warm { border-color: #cc8800 !important; color: #ffcc44 !important; }
   </style>
 </head>
 <body>
@@ -282,24 +316,37 @@
       <div class="hud-badge" id="sol-badge">◎ 0.00</div>
       <div class="hud-badge" id="cash-badge">💵 $0</div>
       <div class="hud-badge" id="stash-badge">🌿 0g</div>
+      <div class="hud-badge" id="heat-badge">❄️ Cool</div>
+      <div class="hud-badge" id="rep-badge">⭐ Rep 0</div>
+      <div class="hud-badge" id="zone-badge">📍 Street</div>
       <button id="connect-btn" style="display:none">Wallet</button>
     </div>
+  </div>
+
+  <div id="unlock-progress">
+    <div class="label">NEXT UNLOCK</div>
+    <div class="progress-bar-outer"><div class="progress-bar-inner" id="unlock-bar" style="width:0%"></div></div>
+    <div id="unlock-text">Choose your home base</div>
   </div>
 
   <!-- Grow panel -->
   <div id="grow-panel">
     <div class="label">ACTIVE GROW</div>
-    <div id="strain-name" style="color:#fff;font-size:12px;margin-bottom:4px;">—</div>
+    <div id="strain-name" style="color:#fff;font-size:12px;margin-bottom:2px;">—</div>
+    <div id="grow-stage" style="color:#5a9a5a;font-size:9px;margin-bottom:4px;">Stage: —</div>
     <div class="label">GROWTH</div>
     <div class="progress-bar-outer"><div class="progress-bar-inner" id="grow-bar" style="width:0%"></div></div>
     <div id="grow-status" style="color:#5a9a5a;font-size:10px;">No plant growing</div>
-    <button id="harvest-btn" style="margin-top:6px;display:none;background:#1a5c1a;border:1px solid #4caf50;border-radius:4px;padding:3px 10px;color:#7fff7f;cursor:pointer;font-family:'Courier New',monospace;font-size:11px;">HARVEST</button>
+    <div id="grow-timer" style="color:#aaaaaa;font-size:9px;margin-top:2px;display:none;"></div>
+    <div id="grow-yield-preview" style="color:#7fff7f;font-size:9px;display:none;"></div>
+    <div id="grow-quality" style="font-size:9px;margin-top:2px;display:none;"></div>
+    <button id="harvest-btn" style="margin-top:6px;display:none;background:#1a5c1a;border:1px solid #4caf50;border-radius:4px;padding:3px 10px;color:#7fff7f;cursor:pointer;font-family:'Courier New',monospace;font-size:11px;">🌿 HARVEST</button>
   </div>
 
   <!-- Controls hint -->
   <div id="controls-hint">
-    Click to move &nbsp; E Interact<br>
-    B Shop &nbsp; H Home/Street
+    Click/WASD move &nbsp; E Interact<br>
+    B Shop &nbsp; I Inventory &nbsp; H Home
   </div>
 
   <!-- Shop panel -->
@@ -324,6 +371,14 @@
 
   <!-- Notification -->
   <div id="notif" id="notif"></div>
+
+  <!-- Hotbar -->
+  <div id="hotbar">
+    <div class="hotkey" onclick="openShop()"><span class="key">B</span> Shop</div>
+    <div class="hotkey" onclick="openInventory()"><span class="key">I</span> Inventory</div>
+    <div class="hotkey"><span class="key">M</span> Map</div>
+    <div class="hotkey"><span class="key">J</span> Journal</div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>

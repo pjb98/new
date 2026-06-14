@@ -32,6 +32,11 @@ const G = {
   unlockedNPCCount: 1,    // # of customer houses accessible (max 4)
   totalSales: 0,          // total transactions completed
   lastHouseIdx: 0,
+
+  // Status
+  heat: 0,                // 0–100, rises with sales, falls over time
+  rep: 0,                 // reputation = totalEarned / 50
+  scene: 'street',        // 'street' | 'home'
 };
 
 // ---------- Shop Catalog ----------
@@ -102,6 +107,10 @@ const NPC_STYLES = [
 function drawChar(g, style, depth) {
   g.clear();
   const s = style;
+
+  // Drop shadow
+  g.fillStyle(0x000000, 0.18);
+  g.fillEllipse(0, 17, 36, 9);
 
   // Shoes
   g.fillStyle(s.shoes, 1);
@@ -234,6 +243,10 @@ function drawFanLeaf(g, cx, cy, dirDeg, size, leaflets) {
 // Dedicated player sprite: hood up, shades, gold chain, Jordans
 function drawDealer(g, depth) {
   g.clear();
+
+  // Drop shadow
+  g.fillStyle(0x000000, 0.22);
+  g.fillEllipse(0, 18, 40, 10);
 
   // === HIGH-TOP JORDANS ===
   // Left
@@ -637,11 +650,18 @@ class HomeScene extends Phaser.Scene {
 
   create() {
     const W = this.scale.width, H = this.scale.height;
+    G.scene = 'home';
 
     // ---- Draw room ----
     const g = this.add.graphics();
     this.roomGraphics = g;
     this.drawRoom(g);
+
+    // ---- Grow zone ambient glow (pulses while plant is growing) ----
+    this.glowLayer = this.add.graphics().setDepth(1).setAlpha(0);
+    this.glowLayer.fillStyle(0x44ff44, 0.18);
+    this.glowLayer.fillRect(7 * TILE - 8, 10 * TILE - 8, 4 * TILE + 16, 4 * TILE + 16);
+    this.glowTween = null;
 
     // ---- Player ----
     this.player = this.add.graphics();
@@ -724,29 +744,184 @@ class HomeScene extends Phaser.Scene {
   }
 
   drawRoom(g) {
+    const loc = G.activeLocation;
     const cols = Math.ceil(W / TILE), rows = Math.ceil(H / TILE);
-    // Warm wooden floor
+
+    // === FLOOR — location-based ===
+    const floors = {
+      'Bedroom':   [0xcc7a2a, 0xb86820, 0x9a5018],
+      'Garage':    [0x888878, 0x787868, 0x555548],
+      'Warehouse': [0x6a6a5a, 0x5a5a4a, 0x444438],
+      'Greenhouse':[0x88cc66, 0x77bb55, 0x559938],
+      'Lab':       [0xdde8ee, 0xccdde8, 0xaabbcc],
+    };
+    const [flA, flB, flBrd] = floors[loc] || floors['Bedroom'];
     for (let x = 0; x < cols; x++) for (let y = 0; y < rows; y++) {
-      const c = (x + y) % 2 === 0 ? 0xcc7a2a : 0xb86820;
-      drawTile(g, x, y, c, 0x9a5018);
+      drawTile(g, x, y, (x + y) % 2 === 0 ? flA : flB, flBrd);
     }
-    // Cream/warm walls
+
+    // === WALLS — location-based ===
+    const walls = {
+      'Bedroom':   [0xe8c888, 0xc4a455],
+      'Garage':    [0xaaaaaa, 0x888888],
+      'Warehouse': [0x998888, 0x776666],
+      'Greenhouse':[0xbbddff, 0x88aacc],
+      'Lab':       [0xeeeeff, 0xccccdd],
+    };
+    const [wC, wB] = walls[loc] || walls['Bedroom'];
     for (let x = 0; x < cols; x++) {
-      drawTile(g, x, 0, 0xe8c888, 0xc4a455);
-      drawTile(g, x, rows - 1, 0xe8c888, 0xc4a455);
+      drawTile(g, x, 0, wC, wB);
+      drawTile(g, x, rows - 1, wC, wB);
     }
     for (let y = 0; y < rows; y++) {
-      drawTile(g, 0, y, 0xe8c888, 0xc4a455);
-      drawTile(g, cols - 1, y, 0xe8c888, 0xc4a455);
+      drawTile(g, 0, y, wC, wB);
+      drawTile(g, cols - 1, y, wC, wB);
     }
-    // Door on right wall (bright green)
+
+    // Door on right wall
     for (let y = 9; y <= 11; y++) drawTile(g, cols - 1, y, 0x44cc44, 0x88ff88);
-    // Rich dark soil grow patch
+    // Door frame highlight
+    g.fillStyle(0x88ff88, 0.3);
+    g.fillRect(W - TILE - 2, 9 * TILE - 2, TILE + 4, 3 * TILE + 4);
+    // Exit sign above door
+    g.fillStyle(0x003300, 1); g.fillRect(W - TILE - 14, 8 * TILE + 6, 42, 14);
+    g.fillStyle(0x44ff44, 0.9); g.fillRect(W - TILE - 12, 8 * TILE + 8, 38, 10);
+    g.fillStyle(0x001a00, 1);
+    // EXIT text approximated as blocks
+    for (let i = 0; i < 4; i++) g.fillRect(W - TILE - 10 + i * 9, 8 * TILE + 10, 7, 6);
+
+    // Dark soil grow patch
     for (let x = 7; x <= 10; x++) for (let y = 10; y <= 13; y++) drawTile(g, x, y, 0x3a1a00, 0x6a3a10);
-    // Colorful red rug
-    for (let x = 2; x <= 5; x++) for (let y = 6; y <= 9; y++) {
-      const c = (x + y) % 2 === 0 ? 0xcc2233 : 0xaa1122;
-      drawTile(g, x, y, c, 0xee4455);
+    // Grow zone border glow
+    g.lineStyle(2, 0x44cc22, 0.5);
+    g.strokeRect(7 * TILE, 10 * TILE, 4 * TILE, 4 * TILE);
+
+    // Red rug (all locations except Lab)
+    if (loc !== 'Lab') {
+      for (let x = 2; x <= 5; x++) for (let y = 6; y <= 9; y++) {
+        const c = (x + y) % 2 === 0 ? 0xcc2233 : 0xaa1122;
+        drawTile(g, x, y, c, 0xee4455);
+      }
+      // Rug border pattern
+      g.lineStyle(2, 0xff6644, 0.5);
+      g.strokeRect(2 * TILE + 2, 6 * TILE + 2, 4 * TILE - 4, 4 * TILE - 4);
+    }
+
+    // === LED GROW LIGHT BAR above grow zone ===
+    const glX = 7 * TILE, glY = 9 * TILE + 6, glW = 4 * TILE;
+    g.fillStyle(0x222222, 1); g.fillRect(glX - 6, glY, glW + 12, 12); // housing
+    g.fillStyle(0x444444, 1); g.fillRect(glX - 6, glY, glW + 12, 4);  // top trim
+    for (let i = 0; i < 8; i++) {                                      // red LEDs
+      g.fillStyle(0xdd1100, 1); g.fillRect(glX + i * 16 + 2, glY + 3, 8, 7);
+      g.fillStyle(0xff4422, 0.6); g.fillRect(glX + i * 16 + 3, glY + 3, 5, 3); // highlight
+    }
+    for (let i = 0; i < 4; i++) {                                      // blue LEDs
+      g.fillStyle(0x3333ee, 1); g.fillRect(glX + i * 32 + 10, glY + 3, 6, 7);
+    }
+    // Cables hanging from light
+    g.lineStyle(2, 0x333333, 0.9);
+    g.lineBetween(glX + 10, glY, glX + 10, glY - 18);
+    g.lineBetween(glX + glW - 10, glY, glX + glW - 10, glY - 18);
+    // Purple grow glow under LEDs
+    g.fillStyle(0xcc44aa, 0.12);
+    g.fillRect(glX - 12, glY + 12, glW + 24, 80);
+
+    // === WALL SHELF (left wall) ===
+    const shX = 36, shY = 78, shW = 120;
+    g.fillStyle(0x7a4a1a, 1); g.fillRect(shX, shY, shW, 11); // shelf board
+    g.fillStyle(0x5a3a10, 1); g.fillRect(shX + 4, shY + 10, 6, 32); // left bracket
+    g.fillRect(shX + shW - 10, shY + 10, 6, 32);                     // right bracket
+    g.fillStyle(0x3a2008, 0.4); g.fillRect(shX, shY + 9, shW, 3);    // shadow under
+    // Shelf items: small plant, books, jar
+    g.fillStyle(0x88cc44, 1); g.fillCircle(66, shY - 8, 9);          // plant top
+    g.fillStyle(0x446611, 1); g.fillRect(63, shY - 8, 6, 10);         // stem
+    g.fillStyle(0xaa6633, 1); g.fillRect(58, shY, 16, 9);             // pot
+    g.fillStyle(0xdd3311, 0.9); g.fillRect(96, shY - 8, 13, 10);      // red book
+    g.fillStyle(0x2244aa, 0.9); g.fillRect(111, shY - 6, 10, 8);      // blue book
+    g.fillStyle(0xddcc44, 0.9); g.fillRect(123, shY - 7, 10, 9);      // yellow book
+    g.fillStyle(0x88ddcc, 0.8); g.fillCircle(148, shY - 5, 7);        // glass jar
+    g.fillStyle(0x44ff88, 0.35); g.fillCircle(148, shY - 5, 5);       // green content
+
+    // === FAN in top-right corner ===
+    const fanX = W - 118, fanY = 72;
+    g.fillStyle(0x555555, 1); g.fillRect(fanX - 5, fanY - 5, 54, 54); // casing
+    g.fillStyle(0x333333, 1); g.fillCircle(fanX + 22, fanY + 22, 23); // grille
+    g.fillStyle(0x4a4a4a, 1); g.fillCircle(fanX + 22, fanY + 22, 18);
+    g.lineStyle(2, 0x444444, 0.8);
+    for (let a = 0; a < 4; a++) {
+      const r = (a / 4) * Math.PI * 2;
+      g.lineBetween(fanX + 22, fanY + 22, fanX + 22 + Math.cos(r) * 17, fanY + 22 + Math.sin(r) * 17);
+    }
+    g.lineStyle(1, 0x444444, 0.5); g.strokeCircle(fanX + 22, fanY + 22, 11);
+    g.fillStyle(0x888888, 1); g.fillCircle(fanX + 22, fanY + 22, 5); // hub
+    g.fillStyle(0x444444, 1);
+    g.fillRect(fanX + 18, fanY + 45, 8, 24); // stand
+    g.fillRect(fanX + 8, fanY + 67, 28, 5);  // base
+
+    // === STORAGE BOXES (bottom-right area) ===
+    g.fillStyle(0xcc9944, 1); g.fillRect(598, 445, 60, 42);          // box 1
+    g.fillStyle(0xaa7722, 1);
+    g.fillRect(598, 445, 60, 5); g.fillRect(598, 463, 60, 3);        // straps
+    g.lineStyle(1, 0x885500, 0.6); g.strokeRect(598, 445, 60, 42);
+    g.fillStyle(0xbb8833, 1); g.fillRect(662, 455, 52, 32);          // box 2
+    g.fillStyle(0x996611, 1);
+    g.fillRect(662, 455, 52, 4); g.fillRect(662, 470, 52, 2);
+    g.lineStyle(1, 0x885500, 0.5); g.strokeRect(662, 455, 52, 32);
+    g.fillStyle(0xddaa55, 1); g.fillRect(598, 405, 40, 38);          // box 3 (stacked)
+    g.fillStyle(0xaa7722, 1); g.fillRect(598, 405, 40, 4);
+    g.lineStyle(1, 0x885500, 0.5); g.strokeRect(598, 405, 40, 38);
+
+    // === POSTER on wall ===
+    g.fillStyle(0x4a3010, 1); g.fillRect(402, 34, 66, 58);           // frame
+    g.fillStyle(0xddaa44, 1); g.fillRect(406, 38, 58, 50);           // poster bg
+    if (G.owned.cosmetics.includes('Bob Marley')) {
+      g.fillStyle(0x226611, 1); g.fillCircle(435, 54, 11);            // head
+      g.fillStyle(0x663311, 1);
+      for (let d = 0; d < 7; d++) {
+        const r = (d / 7) * Math.PI * 2;
+        g.fillRect(435 + Math.cos(r) * 9 - 2, 44 + Math.sin(r) * 9, 4, 14);
+      }
+      g.fillStyle(0xffcc33, 0.7); g.fillRect(416, 66, 38, 4);
+      g.fillStyle(0x33aa33, 0.7); g.fillRect(416, 71, 38, 4);
+      g.fillStyle(0xdd2222, 0.7); g.fillRect(416, 76, 38, 4);
+    } else {
+      g.fillStyle(0x888877, 0.5); g.fillRect(416, 46, 40, 34);
+      g.fillStyle(0x7a7a60, 0.3); g.fillRect(420, 50, 32, 26);
+    }
+
+    // Neon sign if owned
+    if (G.owned.cosmetics.includes('Neon Sign')) {
+      g.lineStyle(3, 0x44ff44, 0.95); g.strokeRect(570, 48, 82, 42);
+      g.fillStyle(0x44ff44, 0.12); g.fillRect(572, 50, 78, 38);
+      g.fillStyle(0x44ff44, 0.6); g.fillCircle(580, 58, 4); g.fillCircle(644, 58, 4);
+    }
+    // Disco ball if owned
+    if (G.owned.cosmetics.includes('Disco Ball')) {
+      g.fillStyle(0xcccccc, 1); g.fillCircle(480, 60, 18);
+      for (let dy = -14; dy <= 14; dy += 7) {
+        for (let dx = -14; dx <= 14; dx += 7) {
+          const shade = ((dx + dy) % 14 === 0) ? 0xffffff : 0x88aacc;
+          g.fillStyle(shade, 0.8); g.fillRect(480 + dx - 2, 60 + dy - 2, 5, 5);
+        }
+      }
+      g.fillStyle(0xffffff, 0.4);
+      g.lineBetween(480, 42, 480, 30); // chain
+    }
+
+    // === Greenhouse glass effect (location upgrade) ===
+    if (loc === 'Greenhouse') {
+      g.fillStyle(0xbbddff, 0.15);
+      g.fillRect(TILE, 0, W - 2 * TILE, 3 * TILE); // glass ceiling panels
+      g.lineStyle(2, 0x88aacc, 0.4);
+      for (let gx = TILE * 3; gx < W - TILE; gx += TILE * 3) {
+        g.lineBetween(gx, 0, gx, 3 * TILE);
+      }
+    }
+    // Lab sterile grid lines
+    if (loc === 'Lab') {
+      g.lineStyle(1, 0x8888aa, 0.18);
+      for (let gx = 0; gx < W; gx += TILE) g.lineBetween(gx, 0, gx, H);
+      for (let gy = 0; gy < H; gy += TILE) g.lineBetween(0, gy, W, gy);
     }
   }
 
@@ -870,12 +1045,60 @@ class HomeScene extends Phaser.Scene {
     if (!G.plant) return;
     const pct = this.growPercent();
     document.getElementById('grow-bar').style.width = (pct * 100) + '%';
-    document.getElementById('grow-status').textContent = pct >= 1
-      ? '✅ Ready to harvest!'
-      : `Growing... ${Math.floor(pct * 100)}%`;
+
+    // Stage name
+    let stageName;
+    if (pct < 0.15)      stageName = '🌱 Seedling';
+    else if (pct < 0.4)  stageName = '🌿 Vegetative';
+    else if (pct < 0.8)  stageName = '💪 Flowering';
+    else if (pct < 1)    stageName = '🌸 Ripening';
+    else                 stageName = '✅ READY TO HARVEST';
+    document.getElementById('grow-stage').textContent = `Stage: ${stageName}`;
+
+    // Timer countdown
+    const timerEl = document.getElementById('grow-timer');
+    if (pct < 1) {
+      const rem = G.plant.growTime * (1 - pct);
+      const m = Math.floor(rem / 60), s = Math.floor(rem % 60);
+      timerEl.textContent = `⏱ ${m}m ${s < 10 ? '0' : ''}${s}s remaining`;
+      timerEl.style.display = 'block';
+    } else {
+      timerEl.style.display = 'none';
+    }
+
+    // Expected yield
+    const yieldEl = document.getElementById('grow-yield-preview');
+    yieldEl.textContent = `📦 Expected: ~${G.plant.yieldG}g`;
+    yieldEl.style.display = 'block';
+
+    // Quality tier
+    const strain = SHOP.strains.find(s => s.id === G.plant.strain);
+    const qualityEl = document.getElementById('grow-quality');
+    let quality, qualColor;
+    if (!strain || strain.price === 0) { quality = '⚪ Common'; qualColor = '#aaaaaa'; }
+    else if (strain.price < 300)       { quality = '🟢 Good';    qualColor = '#7fff7f'; }
+    else if (strain.price < 800)       { quality = '🟣 Exotic';  qualColor = '#cc88ff'; }
+    else                               { quality = '🟡 Legendary'; qualColor = '#ffd700'; }
+    qualityEl.textContent = quality;
+    qualityEl.style.color = qualColor;
+    qualityEl.style.display = 'block';
+
+    document.getElementById('grow-status').textContent = pct >= 1 ? '' : `Growing... ${Math.floor(pct * 100)}%`;
     document.getElementById('harvest-btn').style.display = pct >= 1 ? 'block' : 'none';
     this.updatePlantSprite();
-    // Start pulsing glow tween when ready
+
+    // Grow zone glow — shows when plant is active
+    if (this.glowLayer) {
+      if (!this.glowTween) {
+        this.glowLayer.setAlpha(pct >= 1 ? 0.8 : 0.4);
+        this.glowTween = this.tweens.add({
+          targets: this.glowLayer, alpha: { from: pct >= 1 ? 0.8 : 0.3, to: pct >= 1 ? 0.25 : 0.1 },
+          yoyo: true, repeat: -1, duration: pct >= 1 ? 500 : 1200, ease: 'Sine.easeInOut',
+        });
+      }
+    }
+
+    // Plant pulse when ready
     if (pct >= 1 && !this.plantTween) {
       this.plantTween = this.tweens.add({
         targets: this.plantG, alpha: { from: 1, to: 0.65 },
@@ -901,6 +1124,8 @@ class HomeScene extends Phaser.Scene {
         yieldG: Math.floor(strain.yield * equip.yieldMult * (loc.yieldMult || 1)),
       };
       this.drawPlantStage(0);
+      if (this.glowTween) { this.glowTween.stop(); this.glowTween = null; }
+      floatText(this, this.plantG.x, this.plantG.y - 40, '🌱 Planted!', '#88ff44');
       notify(`🌱 Planted ${strain.name}! Grows in ~${growTime}s`);
       document.getElementById('strain-name').textContent = strain.name;
     } else if (this.growPercent() >= 1) {
@@ -917,10 +1142,17 @@ class HomeScene extends Phaser.Scene {
     G.plant = null;
     document.getElementById('grow-bar').style.width = '0%';
     document.getElementById('grow-status').textContent = 'No plant growing';
+    document.getElementById('grow-stage').textContent = 'Stage: —';
     document.getElementById('harvest-btn').style.display = 'none';
+    document.getElementById('grow-timer').style.display = 'none';
+    document.getElementById('grow-yield-preview').style.display = 'none';
+    document.getElementById('grow-quality').style.display = 'none';
     document.getElementById('strain-name').textContent = '—';
     if (this.plantTween) { this.plantTween.stop(); this.plantTween = null; this.plantG.alpha = 1; }
+    if (this.glowTween)  { this.glowTween.stop();  this.glowTween = null; }
+    if (this.glowLayer)   this.glowLayer.setAlpha(0);
     this.drawPlantStage(0);
+    floatText(this, this.plantG.x, this.plantG.y - 40, `+${y}g 🌿`, '#44ff44');
     notify(`🌿 Harvested ${y}g!`);
     updateHUD();
   }
@@ -1005,6 +1237,7 @@ class StreetScene extends Phaser.Scene {
   constructor() { super('StreetScene'); }
 
   create() {
+    G.scene = 'street';
     const g = this.add.graphics();
     this.drawStreet(g);
 
@@ -1058,6 +1291,11 @@ class StreetScene extends Phaser.Scene {
 
     // NPC wander timer
     this.time.addEvent({ delay: 2000, loop: true, callback: this.wanderNPCs, callbackScope: this });
+
+    // Heat cooldown
+    this.time.addEvent({ delay: 30000, loop: true, callback: () => {
+      if (G.heat > 0) { G.heat = Math.max(0, G.heat - 8); updateHUD(); }
+    }});
 
     // Home selection banner (shown until player picks a house)
     this.homeSelectBanner = this.add.text(W / 2, H / 2 - 40,
@@ -1415,7 +1653,9 @@ class StreetScene extends Phaser.Scene {
         { text: `Sell ${want}g ($${total})`, action: () => {
             G.stash -= want; G.cash += total;
             G.totalEarned += total; G.totalSales++;
+            G.heat = Math.min(100, G.heat + 15);
             closeDialog();
+            floatText(this, this.player.x, this.player.y - 40, `+$${total}`, '#ffd700');
             notify(`💵 Sold ${want}g for $${total}!`);
             updateHUD();
             checkProgressionUnlocks(this);
@@ -1443,7 +1683,9 @@ class StreetScene extends Phaser.Scene {
         { text: `Sell ${want}g ($${total})`, action: () => {
             G.stash -= want; G.cash += total;
             G.totalEarned += total; G.totalSales++;
+            G.heat = Math.min(100, G.heat + 12);
             closeDialog();
+            floatText(this, this.player.x, this.player.y - 40, `+$${total}`, '#ffd700');
             notify(`💵 Sold ${want}g for $${total}!`);
             updateHUD();
             checkProgressionUnlocks(this);
@@ -1660,10 +1902,74 @@ function startGame() {
 // UI HELPERS
 // ========================
 
+function floatText(scene, x, y, text, color) {
+  if (!scene || !scene.add) return;
+  const t = scene.add.text(x, y, text, {
+    fontSize: '15px', color: color || '#ffffff',
+    fontFamily: 'Courier New', stroke: '#000000', strokeThickness: 3,
+  }).setOrigin(0.5).setDepth(30);
+  scene.tweens.add({
+    targets: t, y: y - 55, alpha: 0,
+    duration: 1100, ease: 'Power2',
+    onComplete: () => t.destroy(),
+  });
+}
+
+function openInventory() {
+  const stash = G.stash;
+  const strain = SHOP.strains.find(s => s.id === G.activeStrain);
+  const equip  = SHOP.equipment.find(e => e.id === G.activeEquipment);
+  const loc    = SHOP.locations.find(l => l.id === G.activeLocation);
+  notify(`🎒 Stash: ${stash}g | ${strain?.name} | ${equip?.name} | ${loc?.name}`);
+}
+
 function updateHUD() {
-  document.getElementById('sol-badge').textContent = `◎ ${G.solBalance.toFixed(2)}`;
+  document.getElementById('sol-badge').textContent  = `◎ ${G.solBalance.toFixed(2)}`;
   document.getElementById('cash-badge').textContent = `💵 $${G.cash}`;
   document.getElementById('stash-badge').textContent = `🌿 ${G.stash}g`;
+
+  // Heat badge
+  const heatEl = document.getElementById('heat-badge');
+  if (heatEl) {
+    if (G.heat >= 60)      { heatEl.textContent = '🔥 Hot';    heatEl.className = 'hud-badge badge-hot'; }
+    else if (G.heat >= 30) { heatEl.textContent = '⚠️ Warm';  heatEl.className = 'hud-badge badge-warm'; }
+    else                   { heatEl.textContent = '❄️ Cool';   heatEl.className = 'hud-badge'; }
+  }
+
+  // Rep
+  const repEl = document.getElementById('rep-badge');
+  if (repEl) repEl.textContent = `⭐ Rep ${Math.floor(G.totalEarned / 50)}`;
+
+  // Zone
+  const zoneEl = document.getElementById('zone-badge');
+  if (zoneEl) {
+    if (G.scene === 'home' && G.homeHouseIdx >= 0)
+      zoneEl.textContent = `🏠 ${STREET_HOUSES[G.homeHouseIdx].name}`;
+    else
+      zoneEl.textContent = '📍 Street';
+  }
+
+  // Unlock progress bar
+  const unlockBar  = document.getElementById('unlock-bar');
+  const unlockText = document.getElementById('unlock-text');
+  if (unlockBar && unlockText) {
+    if (G.homeHouseIdx === -1) {
+      unlockBar.style.width = '0%';
+      unlockText.textContent = 'Choose your home base first';
+    } else if (G.totalSales === 0) {
+      unlockBar.style.width = '0%';
+      unlockText.textContent = 'Make 1st sale → unlock contact 2';
+    } else if (G.totalEarned < 80) {
+      unlockBar.style.width = Math.min(G.totalEarned / 80 * 100, 100) + '%';
+      unlockText.textContent = `$${80 - G.totalEarned} more earned → contact 3`;
+    } else if (G.totalEarned < 250) {
+      unlockBar.style.width = Math.min((G.totalEarned - 80) / 170 * 100, 100) + '%';
+      unlockText.textContent = `$${250 - G.totalEarned} more earned → contact 4`;
+    } else {
+      unlockBar.style.width = '100%';
+      unlockText.textContent = '🏆 All contacts unlocked!';
+    }
+  }
 }
 
 function notify(msg) {
