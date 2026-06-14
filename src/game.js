@@ -403,6 +403,178 @@ function drawTile(g, x, y, color, border) {
   }
 }
 
+function drawDetailedHouse(g, h) {
+  const px = h.x * TILE, py = h.y * TILE;
+  const pw = h.w * TILE, ph = h.h * TILE;
+
+  // Drop shadow
+  g.fillStyle(0x000000, 0.2);
+  g.fillRect(px + 5, py + ph + 2, pw + 4, 10);
+
+  // === ROOF ===
+  const roofTop = py - 20;
+  const eaveBot = py + 8;
+  g.fillStyle(h.roof, 1);
+  g.fillRect(px - 6, roofTop, pw + 12, eaveBot - roofTop);
+  // Shingle lines
+  g.fillStyle(h.roofB, 0.55);
+  for (let ry = roofTop + 8; ry < eaveBot; ry += 10)
+    g.fillRect(px - 6, ry, pw + 12, 4);
+  // Ridge cap
+  g.fillStyle(h.roofB, 1);
+  g.fillRect(px - 4, roofTop, pw + 8, 9);
+  // Fascia (eave edge)
+  g.fillStyle(h.roofB, 1);
+  g.fillRect(px - 6, eaveBot - 7, pw + 12, 7);
+  // Shadow under eave
+  g.fillStyle(0x000000, 0.2);
+  g.fillRect(px - 6, eaveBot, pw + 12, 5);
+
+  // Chimney (on wider houses)
+  if (pw >= 128) {
+    const chX = px + pw - 36;
+    g.fillStyle(0xaa7755, 1);
+    g.fillRect(chX, roofTop - 14, 16, eaveBot - roofTop + 4);
+    g.fillStyle(0x886644, 0.5);
+    for (let cy = roofTop - 14; cy < eaveBot; cy += 7) g.fillRect(chX, cy, 16, 2);
+    g.fillStyle(0x776644, 1);
+    g.fillRect(chX - 2, roofTop - 16, 20, 6);
+    g.fillStyle(0x111111, 1);
+    g.fillRect(chX + 4, roofTop - 14, 8, 5);
+  }
+
+  // === WALL ===
+  const wallTop = eaveBot - 4;
+  const wallH = ph - 8;
+  g.fillStyle(h.wall, 1);
+  g.fillRect(px, wallTop, pw, wallH);
+  // Brick/siding rows
+  const rowH = 8;
+  for (let ry = 0; ry < wallH; ry += rowH) {
+    g.fillStyle(h.wallB, Math.floor(ry / rowH) % 2 === 0 ? 0.2 : 0.08);
+    g.fillRect(px, wallTop + ry, pw, 2);
+    g.fillStyle(h.wallB, 0.1);
+    const boff = (Math.floor(ry / rowH) % 2) * 20;
+    for (let bx = boff; bx < pw; bx += 40) g.fillRect(px + bx, wallTop + ry + 2, 1, rowH - 2);
+  }
+  // Corner trim
+  g.fillStyle(0xffffff, 0.22);
+  g.fillRect(px, wallTop, 5, wallH);
+  g.fillRect(px + pw - 5, wallTop, 5, wallH);
+  g.fillStyle(0x000000, 0.18);
+  g.fillRect(px, wallTop, 1, wallH);
+  g.fillRect(px + pw - 1, wallTop, 1, wallH);
+
+  // === WINDOWS ===
+  const numCols = pw >= 160 ? 3 : pw >= 128 ? 2 : 1;
+  const numWRows = wallH >= 100 ? 2 : 1;
+  const winW = numCols >= 3 ? 20 : numCols >= 2 ? 22 : 28;
+  const winH = 22;
+  for (let wr = 0; wr < numWRows; wr++) {
+    const winY = wr === 0 ? wallTop + 16 : wallTop + wallH - 64;
+    for (let wc = 0; wc < numCols; wc++) {
+      const winX = px + Math.round((wc + 0.5) * pw / numCols) - winW / 2;
+      // Sill
+      g.fillStyle(0xddccbb, 1);
+      g.fillRect(winX - 4, winY + winH + 1, winW + 8, 5);
+      // Frame
+      g.fillStyle(h.wallB, 1);
+      g.fillRect(winX - 3, winY - 3, winW + 6, winH + 6);
+      // Glass + warm glow
+      g.fillStyle(0x88aacc, 1);
+      g.fillRect(winX, winY, winW, winH);
+      g.fillStyle(0xffdd99, 0.55);
+      g.fillRect(winX, winY, winW, winH);
+      // Pane dividers
+      g.fillStyle(h.wallB, 1);
+      g.fillRect(winX + Math.floor(winW / 2) - 1, winY, 2, winH);
+      g.fillRect(winX, winY + Math.floor(winH / 2) - 1, winW, 2);
+      // Reflection
+      g.fillStyle(0xffffff, 0.55);
+      g.fillRect(winX + 2, winY + 2, 5, 5);
+      g.fillStyle(0xffffff, 0.25);
+      g.fillRect(winX + 3, winY + 10, 3, 6);
+    }
+  }
+
+  // === DOOR ===
+  const dW = 18, dH = 32;
+  const dX = px + Math.floor(pw / 2) - dW / 2;
+  const dY = wallTop + wallH - dH - 2;
+  // Transom
+  g.fillStyle(h.wallB, 1);
+  g.fillRect(dX - 3, dY - 14, dW + 6, 14);
+  g.fillStyle(0x88aacc, 0.9);
+  g.fillRect(dX, dY - 11, dW, 10);
+  g.fillStyle(0xffdd99, 0.45);
+  g.fillRect(dX, dY - 11, dW, 10);
+  // Frame
+  g.fillStyle(h.wallB, 1);
+  g.fillRect(dX - 3, dY, dW + 6, dH + 4);
+  // Door surface
+  g.fillStyle(0x6a3820, 1);
+  g.fillRect(dX, dY, dW, dH);
+  const panH = Math.floor((dH - 8) / 2);
+  g.fillStyle(0x4a2810, 1);
+  g.fillRect(dX + 2, dY + 2, dW - 4, panH);
+  g.fillRect(dX + 2, dY + panH + 5, dW - 4, panH);
+  g.fillStyle(0x8a5030, 0.5);
+  g.fillRect(dX + 2, dY + 2, dW - 4, 2);
+  g.fillRect(dX + 2, dY + panH + 5, dW - 4, 2);
+  // Knob
+  g.fillStyle(0xffd700, 1);
+  g.fillCircle(dX + dW - 4, dY + Math.floor(dH * 0.55), 3);
+  g.fillStyle(0xcc9900, 1);
+  g.fillCircle(dX + dW - 4, dY + Math.floor(dH * 0.55), 1.5);
+
+  // === FOUNDATION + STEPS ===
+  g.fillStyle(0x888878, 1);
+  g.fillRect(px - 2, wallTop + wallH, pw + 4, 9);
+  g.fillStyle(0xaaa898, 1);
+  g.fillRect(px - 2, wallTop + wallH, pw + 4, 3);
+  g.fillStyle(0x999988, 1);
+  g.fillRect(dX - 5, wallTop + wallH + 9, dW + 10, 6);
+  g.fillStyle(0xbbbbaa, 1);
+  g.fillRect(dX - 5, wallTop + wallH + 9, dW + 10, 2);
+  g.fillRect(dX - 8, wallTop + wallH + 15, dW + 16, 6);
+  g.fillStyle(0xbbbbaa, 1);
+  g.fillRect(dX - 8, wallTop + wallH + 15, dW + 16, 2);
+}
+
+function drawDetailedTree(g, tx, ty) {
+  // Ground shadow
+  g.fillStyle(0x000000, 0.14);
+  g.fillEllipse(tx + 3, ty + 34, 56, 14);
+  // Trunk
+  g.fillStyle(0x6b4010, 1);
+  g.fillRect(tx - 6, ty + 8, 12, 28);
+  g.fillStyle(0x4a2a08, 0.5);
+  g.fillRect(tx - 2, ty + 10, 3, 24);
+  g.fillRect(tx + 2, ty + 16, 2, 16);
+  // Base canopy (dark)
+  g.fillStyle(0x1a5c08, 1);
+  g.fillCircle(tx, ty + 4, 30);
+  // Mid layers
+  g.fillStyle(0x267310, 1);
+  g.fillCircle(tx - 9, ty - 2, 23);
+  g.fillCircle(tx + 9, ty - 2, 23);
+  // Upper mid
+  g.fillStyle(0x2e8a14, 1);
+  g.fillCircle(tx, ty - 8, 21);
+  // Upper layer
+  g.fillStyle(0x44aa22, 1);
+  g.fillCircle(tx - 5, ty - 14, 15);
+  g.fillCircle(tx + 5, ty - 12, 13);
+  // Bright top
+  g.fillStyle(0x55cc33, 1);
+  g.fillCircle(tx, ty - 20, 11);
+  // Specular highlight
+  g.fillStyle(0x88ee55, 0.65);
+  g.fillCircle(tx - 7, ty - 24, 6);
+  g.fillStyle(0xaaf066, 0.45);
+  g.fillCircle(tx - 9, ty - 27, 3);
+}
+
 class HomeScene extends Phaser.Scene {
   constructor() { super('HomeScene'); }
 
@@ -848,95 +1020,123 @@ class StreetScene extends Phaser.Scene {
   drawStreet(g) {
     const cols = Math.ceil(W / TILE), rows = Math.ceil(H / TILE);
 
-    // === BRIGHT GRASS (rows 0-9) ===
+    // === GRASS (rows 0-9) — varied green tiles with patch texture ===
     for (let x = 0; x < cols; x++) {
       for (let y = 0; y < 10; y++) {
-        const c = (x + y) % 2 === 0 ? 0x55cc22 : 0x44aa1a;
-        drawTile(g, x, y, c, 0x33991a);
+        const v = (x * 7 + y * 13) % 5;
+        const c = v === 0 ? 0x3db01a : v === 1 ? 0x44b81e : v === 2 ? 0x4cc220 : v === 3 ? 0x52c824 : 0x59d028;
+        drawTile(g, x, y, c, 0x2a9010);
+      }
+    }
+    // Subtle grass texture — darker blade marks
+    for (let gx = 0; gx < W; gx += 18) {
+      for (let gy = 4; gy < 9 * TILE; gy += 22) {
+        g.fillStyle(0x2a8a10, 0.25);
+        g.fillRect(gx + (gy % 6), gy, 2, 5);
       }
     }
 
-    // === STONE PATH / SIDEWALK (rows 8-9) ===
-    for (let x = 0; x < cols; x++) {
-      for (let y = 8; y <= 9; y++) {
-        const c = (x + y) % 2 === 0 ? 0x9a9080 : 0x8a8070;
-        drawTile(g, x, y, c, 0xb0a898);
+    // === SIDEWALK (rows 8-9) — large stone blocks ===
+    const swY = 8 * TILE, swH = 2 * TILE;
+    g.fillStyle(0x8a8070, 1);
+    g.fillRect(0, swY, W, swH); // base grout color
+    const stW = 54, stH = 26;
+    const stoneShades = [0xb0a090, 0xa89880, 0xb8a898, 0xa09088, 0xb8b0a0];
+    for (let sy = 0; sy < swH; sy += stH + 3) {
+      const rowIdx = Math.floor(sy / (stH + 3));
+      const xOff = rowIdx % 2 === 1 ? -(stW / 2 + 1) : 0;
+      for (let sx = xOff; sx < W; sx += stW + 3) {
+        const shade = stoneShades[Math.abs(Math.floor(sx / (stW + 3)) + rowIdx) % stoneShades.length];
+        g.fillStyle(shade, 1);
+        g.fillRect(sx + 1, swY + sy + 1, stW, stH);
+        // Top highlight
+        g.fillStyle(0xffffff, 0.18);
+        g.fillRect(sx + 1, swY + sy + 1, stW, 3);
+        // Right/bottom shadow
+        g.fillStyle(0x000000, 0.1);
+        g.fillRect(sx + stW - 2, swY + sy + 1, 2, stH);
+        g.fillRect(sx + 1, swY + sy + stH - 2, stW, 2);
       }
     }
 
-    // === CURB (row 10) ===
-    for (let x = 0; x < cols; x++) {
-      drawTile(g, x, 10, 0x7a7a6a, 0x9a9a88);
-    }
+    // === CURB (row 10) — 3D stone edge ===
+    const curbY = 10 * TILE;
+    g.fillStyle(0xccbbaa, 1);
+    g.fillRect(0, curbY, W, 10);            // top face (light)
+    g.fillStyle(0x888070, 1);
+    g.fillRect(0, curbY + 10, W, TILE - 10); // front face (dark)
+    g.fillStyle(0xffffff, 0.25);
+    g.fillRect(0, curbY, W, 2);             // top highlight
+    g.fillStyle(0x000000, 0.25);
+    g.fillRect(0, curbY + TILE - 3, W, 3); // shadow at bottom
 
-    // === ROAD (rows 11-19) ===
-    for (let x = 0; x < cols; x++) {
-      for (let y = 11; y < rows; y++) {
-        const c = (x + y) % 3 === 0 ? 0x5a5a50 : 0x4e4e44;
-        drawTile(g, x, y, c, 0x6a6a5a);
+    // === ROAD (rows 11-19) — dark asphalt ===
+    g.fillStyle(0x2c2c28, 1);
+    g.fillRect(0, 11 * TILE, W, 9 * TILE);
+    // Asphalt grain texture
+    for (let ax = 0; ax < W; ax += 12) {
+      for (let ay = 11 * TILE; ay < 20 * TILE; ay += 12) {
+        if ((ax * 3 + ay * 7) % 19 < 4) {
+          g.fillStyle(0x363630, 0.6);
+          g.fillRect(ax, ay, 9, 9);
+        }
       }
     }
-    // Lane dashes
-    for (let x = 1; x < cols; x += 4) {
-      drawTile(g, x, 14, 0x7a7a68, 0x9a9a80);
-    }
+    // White edge lines
+    g.fillStyle(0xffffff, 0.65);
+    g.fillRect(0, 11 * TILE + 5, W, 3);
+    g.fillRect(0, 20 * TILE - 8, W, 3);
+    // Yellow center dashes
+    g.fillStyle(0xffcc00, 0.9);
+    for (let dx = 0; dx < W; dx += 70) g.fillRect(dx, 15 * TILE + 14, 44, 4);
+    // Secondary lane line (subtle white)
+    g.fillStyle(0xffffff, 0.2);
+    for (let dx = 0; dx < W; dx += 70) g.fillRect(dx, 13 * TILE + 6, 44, 3);
+    for (let dx = 0; dx < W; dx += 70) g.fillRect(dx, 17 * TILE + 6, 44, 3);
 
-    // === HOUSES (tile walls + roofs) ===
-    STREET_HOUSES.forEach((h, hi) => {
-      // Roof row
-      for (let x = h.x; x < h.x + h.w; x++) drawTile(g, x, h.y, h.roof, h.roofB);
-      // Walls
-      for (let x = h.x; x < h.x + h.w; x++)
-        for (let y = h.y + 1; y < h.y + h.h; y++) drawTile(g, x, y, h.wall, h.wallB);
-      // Windows (row below roof)
-      for (let x = h.x; x < h.x + h.w; x++) drawTile(g, x, h.y + 1, 0xaaddff, 0x5599cc);
-      // Door (center, bottom row)
-      const doorTileX = Math.floor(h.x + h.w / 2);
-      drawTile(g, doorTileX, h.y + h.h - 1, 0x5a3010, 0x8a5030);
-      // Door knob
-      g.fillStyle(0xffd700, 1);
-      g.fillCircle((doorTileX + 0.7) * TILE + 6, (h.y + h.h - 0.35) * TILE, 3);
-    });
+    // === HOUSES — detailed facades ===
+    STREET_HOUSES.forEach(h => drawDetailedHouse(g, h));
 
-    // === TREES (drawn over tiles) ===
+    // === TREES — multi-layer canopy ===
     [
       [105,90],[225,55],[390,70],[555,95],[700,60],[860,80],
       [55,185],[310,190],[480,155],[755,185],[920,115],[160,195],[635,170],
-    ].forEach(([tx, ty]) => {
-      g.fillStyle(0x1a6608, 0.3);
-      g.fillEllipse(tx, ty + 26, 48, 14);           // shadow
-      g.fillStyle(0x7a4a1a, 1);
-      g.fillRect(tx - 5, ty + 8, 10, 22);           // trunk
-      g.fillStyle(0x338811, 1);
-      g.fillCircle(tx, ty, 28);                     // base canopy
-      g.fillStyle(0x44aa22, 1);
-      g.fillCircle(tx - 8, ty - 4, 20);
-      g.fillCircle(tx + 8, ty - 4, 20);
-      g.fillStyle(0x55cc33, 1);
-      g.fillCircle(tx, ty - 10, 16);               // top
-      g.fillStyle(0x88ee55, 0.55);
-      g.fillCircle(tx - 5, ty - 14, 7);            // highlight
-    });
+    ].forEach(([tx, ty]) => drawDetailedTree(g, tx, ty));
 
-    // === FOUNTAIN PLAZA (right of path) ===
+    // === FOUNTAIN PLAZA ===
     // Plaza stone tiles
     for (let px = 23; px <= 28; px++)
       for (let py = 7; py <= 9; py++) {
-        const c = (px + py) % 2 === 0 ? 0xbbbbaa : 0xaaa990;
-        drawTile(g, px, py, c, 0xccccaa);
+        const shade = stoneShades[(px + py) % stoneShades.length];
+        g.fillStyle(shade, 1);
+        g.fillRect(px * TILE + 1, py * TILE + 1, TILE - 2, TILE - 2);
+        g.fillStyle(0xffffff, 0.15);
+        g.fillRect(px * TILE + 1, py * TILE + 1, TILE - 2, 4);
       }
-    // Fountain
+    // Fountain basin
     const fx = 820, fy = 300;
-    g.fillStyle(0xaaaaaa, 1); g.fillCircle(fx, fy, 44);   // stone outer
-    g.fillStyle(0x999988, 1); g.fillCircle(fx, fy, 37);
-    g.fillStyle(0x4499cc, 1); g.fillCircle(fx, fy, 29);   // water
-    g.fillStyle(0x66bbee, 1); g.fillCircle(fx, fy, 20);
-    g.fillStyle(0x99ddff, 0.9); g.fillCircle(fx, fy - 3, 10);
-    g.fillStyle(0xbbeeFF, 0.7); g.fillCircle(fx, fy - 8, 6);
-    g.fillStyle(0xddf5ff, 0.5); g.fillCircle(fx, fy - 12, 4);
-    g.lineStyle(3, 0x888888, 1); g.strokeCircle(fx, fy, 44);
+    g.fillStyle(0x000000, 0.15); g.fillEllipse(fx + 4, fy + 6, 100, 24); // shadow
+    g.fillStyle(0xccbbaa, 1); g.fillCircle(fx, fy, 46);
+    g.fillStyle(0xbbaa99, 1); g.fillCircle(fx, fy, 42);
+    // Rim detail
+    g.lineStyle(4, 0x9a8878, 1); g.strokeCircle(fx, fy, 44);
+    g.lineStyle(2, 0xddd0bc, 1); g.strokeCircle(fx, fy, 42);
+    // Water
+    g.fillStyle(0x2277aa, 1); g.fillCircle(fx, fy, 34);
+    g.fillStyle(0x44aadd, 1); g.fillCircle(fx, fy, 28);
+    g.fillStyle(0x66ccee, 0.8); g.fillCircle(fx, fy, 20);
+    // Ripple rings
+    g.lineStyle(1, 0x88ddff, 0.5); g.strokeCircle(fx, fy, 30);
+    g.lineStyle(1, 0x88ddff, 0.3); g.strokeCircle(fx, fy, 24);
+    // Center column
+    g.fillStyle(0xaaaaaa, 1); g.fillCircle(fx, fy, 6);
+    g.fillStyle(0xcccccc, 1); g.fillCircle(fx, fy - 2, 4);
+    // Spray
+    g.fillStyle(0xbbeeFF, 0.8); g.fillCircle(fx, fy - 8, 5);
+    g.fillStyle(0xddf5ff, 0.6); g.fillCircle(fx, fy - 13, 4);
+    g.fillStyle(0xeeffff, 0.4); g.fillCircle(fx, fy - 17, 3);
 
-    // === HOME DOOR (bright green, left of path) ===
+    // === HOME DOOR (bright green, left side) ===
     drawTile(g, 0, 8, 0x44cc44, 0x88ff88);
     drawTile(g, 0, 9, 0x44cc44, 0x88ff88);
     drawTile(g, 1, 8, 0x33aa33, 0x55dd55);
