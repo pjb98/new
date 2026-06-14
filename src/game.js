@@ -632,7 +632,7 @@ class HomeScene extends Phaser.Scene {
       // Ignore clicks on HTML overlay elements
       if (ptr.event.target !== this.sys.game.canvas) return;
       // Ignore clicks while shop is open
-      if (document.getElementById('shop-panel').style.display !== 'none') return;
+      if (document.getElementById('shop-panel').style.display === 'block') return;
       this.moveTarget = { x: ptr.x, y: ptr.y };
       this.clickMarker.clear();
       this.clickMarker.lineStyle(2, 0x4caf50, 0.8);
@@ -982,7 +982,7 @@ class StreetScene extends Phaser.Scene {
     this.input.on('pointerdown', (ptr) => {
       if (ptr.event.target !== this.sys.game.canvas) return;
       // Ignore clicks while shop is open
-      if (document.getElementById('shop-panel').style.display !== 'none') return;
+      if (document.getElementById('shop-panel').style.display === 'block') return;
       // Check if clicking near an NPC — walk to them, then talk
       const near = this.findNearbyNPCAt(ptr.x, ptr.y);
       if (near) {
