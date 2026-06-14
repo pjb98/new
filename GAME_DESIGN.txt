@@ -1,0 +1,607 @@
+================================================================
+  CHRONIC CITY — GAME DESIGN DOCUMENT
+  Solana-Powered Weed Growing Simulator
+================================================================
+
+Last updated: June 2026
+Version: 0.3 (Early Development)
+
+----------------------------------------------------------------
+  TABLE OF CONTENTS
+----------------------------------------------------------------
+  1.  Game Overview
+  2.  Core Gameplay Loop
+  3.  Progression System
+  4.  Economy & Pricing
+  5.  Growing System
+  6.  Sales & Distribution
+  7.  NPC System
+  8.  Shop & Upgrades
+  9.  Map & Location Expansion
+  10. Retention Mechanics
+  11. Solana / Wallet Integration
+  12. Cosmetics & Home Customization
+  13. Planned Future Systems
+
+================================================================
+  1. GAME OVERVIEW
+================================================================
+
+Chronic City is a browser-based top-down weed growing simulator
+with Solana blockchain integration. Players start with nothing
+but a borrowed house and a bag seed, build a grow operation from
+the ground up, unlock new customers and locations, and eventually
+run a full distribution network.
+
+The core fantasy is "rags to riches" through hustle: growing
+quality product, reading the market, managing supply and demand,
+and expanding territory over time.
+
+Target audience: Casual-to-midcore players who enjoy idle/sim
+games, business sims (like Game Dev Tycoon, Drug Wars), and
+crypto-native gaming audiences.
+
+Platform: Browser (HTML5 / Phaser 3), hosted on GitHub Pages.
+Wallet: Phantom (Solana) — optional, game is fully playable in
+demo mode without a wallet.
+
+================================================================
+  2. CORE GAMEPLAY LOOP
+================================================================
+
+  SHORT LOOP (minutes)
+  ┌─────────────────────────────────────────────────────────┐
+  │  Plant weed  →  Wait for growth  →  Harvest             │
+  │  Walk to street  →  Knock on doors / find customers     │
+  │  Sell stash  →  Earn cash  →  Buy upgrades              │
+  └─────────────────────────────────────────────────────────┘
+
+  MEDIUM LOOP (hours / sessions)
+  ┌─────────────────────────────────────────────────────────┐
+  │  Accumulate enough cash  →  Unlock new strain           │
+  │  Unlock better equipment  →  Grow faster / more yield  │
+  │  Hit sales milestone  →  Unlock new customer / location │
+  │  Unlock new grow spot  →  Scale production              │
+  └─────────────────────────────────────────────────────────┘
+
+  LONG LOOP (days / weeks)
+  ┌─────────────────────────────────────────────────────────┐
+  │  Max out local block  →  Expand to new map area         │
+  │  Build full roster of buyers  →  Run automated grows    │
+  │  Earn SOL from on-chain sales  →  Buy NFT cosmetics     │
+  │  Compete on leaderboards / flex stash                   │
+  └─────────────────────────────────────────────────────────┘
+
+SESSION FLOW
+  1. Player opens game on street scene
+  2. First time: choose a house as home base
+  3. Enter home → plant current strain in grow setup
+  4. Return to street while plant grows (real-time timer)
+  5. Chat with / knock on doors of unlocked customers
+  6. Return home when timer is up → harvest → go sell
+  7. Use cash to buy better strains, equipment, locations
+  8. Repeat with better yield and faster grows
+
+================================================================
+  3. PROGRESSION SYSTEM
+================================================================
+
+STAGES OF PROGRESSION
+─────────────────────
+Stage 1 — The Plug (Start)
+  • 1 home (chosen from 5 on starting block)
+  • 1 customer unlocked (street wanderer)
+  • Regular strain, Soil Pot setup
+  • Earning ~$40–80 per harvest
+
+Stage 2 — Getting Known (after first sale)
+  • 2nd customer unlocked (door knocker)
+  • Can afford OG Kush strain ($120)
+  • Earning ~$80–150 per harvest
+
+Stage 3 — Small Operation ($80 total earned)
+  • 3rd customer unlocked
+  • Can afford Hydro Kit ($300) → 40% faster grows
+  • Earning ~$150–280 per harvest
+
+Stage 4 — Mid-Level Dealer ($250 total earned)
+  • 4th customer unlocked
+  • Unlock Garage location ($400) → 2 plants at once
+  • Blue Dream strain available ($250) → higher yield
+  • Earning ~$300–500 per harvest
+
+Stage 5 — Area Boss ($800+ total earned)
+  • 5th customer unlocked (bulk buyer, lower per-gram price
+    but takes 15–40g at once)
+  • Warehouse location ($1200) → 4 plants
+  • Girl Scout Cookies / Purple Haze strains available
+  • Earning ~$600–1200 per cycle
+
+Stage 6 — Kingpin ($3000+ total earned)
+  • New map area unlocked (Downtown block)
+  • LED Grow Tent ($600) → premium yields
+  • White Widow / Gorilla Glue strains available
+  • New NPC archetypes (restaurant owners, club promoters)
+  • Earning ~$1500–3000 per cycle
+
+UNLOCK TRIGGERS
+  Milestone                Unlock
+  ─────────────────────── ──────────────────────────────────
+  Pick home house          1st street contact appears
+  First completed sale     2nd contact (door knocker)
+  $80 total earned         3rd contact
+  $250 total earned        4th contact
+  $800 total earned        5th contact (bulk buyer)
+  $2000 total earned       2nd map area / Downtown
+  $5000 total earned       Automated grow assistant NPC
+  $10000 total earned      Black market broker (SOL sales)
+
+REPUTATION SYSTEM (planned)
+  Each NPC has a hidden reputation score 0–100.
+  Selling regularly to them increases it.
+  Higher rep → better prices, larger orders, exclusive strains.
+  Stiffing a customer or selling bad product → rep loss.
+
+================================================================
+  4. ECONOMY & PRICING
+================================================================
+
+STRAIN YIELD AND VALUE
+  Strain          Cost    Yield   Grow Time   $/g base   Total value
+  ────────────────────────────────────────────────────────────────
+  Regular         $0      5g      30s         $8–14      $40–70
+  OG Kush         $120    12g     50s         $10–16     $120–192
+  Blue Dream      $250    20g     60s         $12–18     $240–360
+  Girl Scout      $500    30g     80s         $14–20     $420–600
+  Purple Haze     $800    25g     65s         $16–24     $400–600
+  White Widow     $1200   45g     100s        $18–28     $810–1260
+  Gorilla Glue    $2000   60g     120s        $20–32     $1200–1920
+
+  Note: prices shown are base market rate. Actual customer
+  prices vary per NPC and are randomized within their range.
+
+EQUIPMENT MULTIPLIERS
+  Equipment           Cost    Speed x    Yield x
+  ─────────────────────────────────────────────
+  Soil Pot            $0      1.0        1.0
+  Hydro Kit           $300    1.4        1.2
+  LED Grow Tent       $600    1.6        1.5
+  Aeroponic System    $1500   2.0        1.8
+  Auto-Farm Module    $4000   3.0        2.5
+
+LOCATION SLOTS
+  Location            Cost    Plant slots   Bonus
+  ─────────────────────────────────────────────────
+  Bedroom Closet      $0      1             —
+  Garage              $400    2             —
+  Warehouse           $1200   4             —
+  Greenhouse          $3000   6             +30% speed
+  Secret Lab          $8000   8             +50% speed, +50% yield
+
+ECONOMY BALANCE TARGETS
+  The economy is tuned so that:
+  • First upgrade (OG Kush) takes ~2–3 harvests
+  • Players feel steady growth without feeling stuck
+  • End-game items take real sessions of play (not grind)
+  • There's always something attainable in the near future
+
+CASH SINKS (where money goes)
+  1. Strain seeds (one-time unlock, permanent)
+  2. Equipment (one-time upgrade, replaces old)
+  3. Locations (one-time unlock, stacks with previous)
+  4. Cosmetics (pure flex, no gameplay impact)
+  5. Planned: bribes to unlock new zones, repair events
+
+INFLATION CONTROL
+  As players progress, bigger customers buy more per transaction,
+  preventing cash from accumulating too fast early. The market
+  doesn't scale infinitely — top NPC demand caps at 60g/visit.
+
+================================================================
+  5. GROWING SYSTEM
+================================================================
+
+HOW IT WORKS
+  1. Enter home → click the grow patch to plant
+  2. Select active strain (from owned strains)
+  3. Timer begins (real seconds, scaled by equipment/location)
+  4. Growth shown as a visual progress bar + animated plant sprite
+  5. Plant goes through 4 visual stages:
+       Seedling → Vegetative → Mature → Flowering
+  6. At 100% → HARVEST button appears → click to collect grams
+  7. Yield = base strain yield × equipment mult × location mult
+
+PLANT STAGES
+  0–25%    Seedling      Small sprout, 2 leaves
+  26–50%   Young Plant   3-leaflet fan leaves, branching
+  51–75%   Mature Veg    5–7 leaflet fans, multiple branches
+  76–100%  Flowering     Cola buds, amber pistils, trichomes,
+                          glowing halo effect
+  100%     Ready         Pulsing glow animation, harvest prompt
+
+GROW TIMER FORMULA
+  base_time × (1 / (equipment_speed × location_speed))
+
+  Example: Gorilla Glue (120s base) + Auto-Farm (3x) + Lab (1.5x)
+  = 120 / (3.0 × 1.5) = ~27 real seconds
+
+MULTI-PLANT SYSTEM (planned, location-gated)
+  Unlocking Garage+ gives additional plant slots.
+  Each slot operates independently.
+  UI shows all active plants with individual progress bars.
+
+QUALITY SYSTEM (planned)
+  Grows can produce Low / Mid / Top shelf product based on:
+  • Equipment tier
+  • Whether player tended the plant (manual interaction events)
+  • Random chance (simulates real growing variance)
+  Higher quality = higher price per gram.
+
+EVENTS (planned, adds skill element)
+  Random mid-grow events the player can respond to:
+  • "Leaves yellowing" → spend $20 or lose 20% yield
+  • "pH imbalance" → click to fix within 30s or lose quality
+  • "Suspicious smell" → pay bribe or grow ends early
+
+================================================================
+  6. SALES & DISTRIBUTION
+================================================================
+
+STREET CUSTOMERS
+  Unlocked customers wander the street.
+  Walk up and click (or press E) → open sell dialog.
+  They offer a randomized want (grams) and price ($/g).
+  Player can accept or decline. NPCs stay on street for 2–3
+  minutes before wandering away (planned).
+
+DOOR KNOCKING
+  Walk to a customer's house → E to Knock.
+  NPC answers the door — dialog includes:
+  • Flavor text / greeting
+  • Their current buy offer
+  Player cannot enter the house, only sell at the door.
+  Same sell mechanic as street, different framing.
+
+NPC DEMAND COOLDOWN (planned)
+  Each NPC has a cooldown after buying (they need to restock too).
+  Street customers: 3–5 minute cooldown
+  Door knockers: 8–15 minute cooldown
+  This prevents players from spamming one NPC.
+
+PRICING NEGOTIATION (planned)
+  With high enough reputation, players can counter-offer.
+  Success chance based on rep score and charisma stat.
+
+BULK DEALS (planned)
+  Unlocked at Stage 5. High-volume buyers (Hector archetype)
+  buy 20–60g but at lower $/g. Good for moving large stashes fast.
+
+================================================================
+  7. NPC SYSTEM
+================================================================
+
+CURRENT NPCS
+  Name    Where       Buy Range   Price/g   Notes
+  ──────── ─────────── ─────────── ──────── ────────────────────
+  Dude    Street/Door  5–15g      $8–14    Casual buyer, easy
+  Karen   Door         2–5g       $12–18   Medicinal, picky
+  Benny   Door         10–30g     $7–12    Bulk casual, friendly
+  Mia     Door         3–8g       $15–22   Connoisseur, pays more
+  Hector  Door         15–40g     $6–10    Wholesale, low price
+  Gramps  Street       1–4g       $10–16   Always on street
+
+NPC PERSONALITIES (affect dialogue + behavior)
+  • Dude: laid back, flexible pricing
+  • Karen: anxious, needs reassurance, pays premium
+  • Benny: hustler mindset, volume deals
+  • Mia: quality snob, rejects low-grade product
+  • Hector: business-only, no small talk
+  • Gramps: nostalgic, always has a story
+
+UNLOCK ORDER
+  NPCs unlock in order based on total $ earned:
+  Contact 1 (free) → Contact 2 (first sale) → Contact 3 ($80)
+  → Contact 4 ($250) → Contact 5 ($800)
+
+  Player notified on unlock: "[Name] at [House] is now reachable!"
+
+FUTURE NPC TYPES (planned)
+  • Restaurant owner  — weekly bulk buyer, upscale product only
+  • Club promoter     — night-time only buyer, edibles market
+  • Dispensary buyer  — licensed, lower price but huge volume
+  • Undercover cop    — heat event if you sell wrong person
+  • Competitor        — steals customers if you don't maintain rep
+  • Supplier          — can sell you exclusive rare seeds
+
+================================================================
+  8. SHOP & UPGRADES
+================================================================
+
+SHOP TABS
+  Strains    — unlock new seed strains (permanent)
+  Equipment  — upgrade grow setup (replaces, not stacks)
+  Locations  — unlock more grow space (stacks / expands)
+  Cosmetics  — visual-only home decorations
+
+HOW TO ACCESS
+  Press B anywhere on the street or in your home.
+  While the shop is open, click-to-move is disabled.
+
+SHOP UX
+  Each item shows: Name, Description, Price, Buy button.
+  Owned items are grayed out with "Owned" label.
+  Items too expensive are still visible but button is disabled.
+  Price shown in $ (cash). Planned: some items cost SOL.
+
+UPGRADE PHILOSOPHY
+  Equipment and location upgrades are permanent and meaningful.
+  No pay-to-win — all progression is achievable through gameplay.
+  The biggest upgrades should feel like real milestones.
+
+PLANNED SHOP ADDITIONS
+  • Consumables: Fertilizer (one-time yield boost), Fans (temp
+    speed boost), pH kit (prevents quality loss events)
+  • Black Market tab (unlocked late-game): rare seeds, equipment
+    from "off the books" suppliers
+  • NFT Cosmetics tab (Solana wallet required): limited edition
+    room decorations, character skins, pet accessories
+
+================================================================
+  9. MAP & LOCATION EXPANSION
+================================================================
+
+CURRENT MAP — THE BLOCK
+  • 5 houses on a single street
+  • 1 is player's home, 4 are customer houses
+  • Street with sidewalk, curb, road, fountain plaza
+  • Trees, decorative elements
+
+PLANNED MAP ZONES (unlocked via progression)
+  Zone 1 — The Block (Starting area)
+    Residential street, 4–5 customers, basic economy
+
+  Zone 2 — Downtown ($2000+ earned, planned)
+    Commercial district, new NPCs (club, restaurant)
+    Higher prices, more buyers, higher heat risk
+    Larger map with new landmarks
+
+  Zone 3 — The Warehouse District ($8000+ earned, planned)
+    Industrial zone, big bulk buyers
+    Warehouse grow locations available to purchase
+    Rival gang presence (competition mechanics)
+
+  Zone 4 — The Hills ($20000+ earned, planned)
+    Upscale neighborhood, luxury buyers
+    Dispensary partner unlockable
+    Premium-only product market
+
+TRAVEL BETWEEN ZONES (planned)
+  A taxi icon or bus stop on the edge of the map.
+  Costs $10 per trip (small cash sink).
+  Player returns to same zone position on next visit.
+
+GROW LOCATION RELATIONSHIP
+  Growing locations expand as zones unlock:
+  Bedroom → Garage → Warehouse → Greenhouse → Secret Lab
+  Each step unlocks when you purchase the location item in shop
+  AND have reached the right progression stage.
+
+================================================================
+  10. RETENTION MECHANICS
+================================================================
+
+SESSION HOOKS (why players come back)
+  ┌────────────────────────────────────────────────────────┐
+  │  "My plant is ready to harvest"                        │
+  │  The grow timer gives players a reason to return at a  │
+  │  specific future time. Real-time growth means the game │
+  │  is always doing something even when closed.           │
+  └────────────────────────────────────────────────────────┘
+
+  ┌────────────────────────────────────────────────────────┐
+  │  "I'm almost at the next unlock"                       │
+  │  Progression thresholds are tuned so there's always    │
+  │  a meaningful goal ~10–30 minutes of play away.        │
+  └────────────────────────────────────────────────────────┘
+
+  ┌────────────────────────────────────────────────────────┐
+  │  "I want to see what's behind that locked house"       │
+  │  Locked doors with visible unlock requirements keep    │
+  │  the street itself as a persistent curiosity hook.     │
+  └────────────────────────────────────────────────────────┘
+
+DAILY ENGAGEMENT (planned)
+  • Daily login bonus — small cash reward for logging in
+  • Daily customer — a roaming NPC with 2x price offer,
+    appears once per day for 10 minutes
+  • Streak multiplier — 5-day streak doubles yield for a day
+
+SOCIAL HOOKS (planned)
+  • Public leaderboard — top earners by week / all-time
+  • "Flex wall" — players can share their home setup as a
+    screenshot to social platforms
+  • Referral system — invite a friend, both get $100 bonus cash
+
+VARIABLE REWARD (built into current loop)
+  Customer prices and demand are randomized within ranges.
+  This slot-machine effect keeps each sale slightly surprising.
+  Players are always curious: will this NPC pay more today?
+
+PROGRESSION VISIBILITY
+  HUD shows: SOL balance, Cash, Current stash (grams)
+  Grow panel shows: Strain name, growth %, harvest button
+  These are always visible — player always knows their state
+  and what they're working toward.
+
+LOSS PREVENTION (sunk cost engagement)
+  Once a player has a plant growing, they feel compelled to
+  return to harvest it. A mid-grow investment creates a
+  powerful return trigger.
+
+PLANNED: Decay & Urgency
+  Harvested plants not collected within a time window lose
+  potency (quality drops). Adds urgency without being punishing.
+
+PLANNED: Rival NPCs
+  A competing dealer (Dimitri, Rico) appears periodically
+  and "steals" one of your customers if you haven't sold to them
+  recently. Creates urgency to maintain client relationships.
+
+================================================================
+  11. SOLANA / WALLET INTEGRATION
+================================================================
+
+CURRENT STATE
+  • Phantom wallet connect button on splash screen
+  • Demo mode available (no wallet required)
+  • SOL balance displayed in HUD when connected
+  • No on-chain transactions yet
+
+PLANNED BLOCKCHAIN FEATURES
+
+  Real SOL Transactions
+  • High-value late-game sales can optionally settle in SOL
+  • Exchange rate: $50 in-game = 0.001 SOL (variable)
+  • Player can choose: take cash or SOL for each sale
+  • Actual Solana transfer to/from wallet (Devnet first)
+
+  NFT Cosmetics
+  • Limited edition home decorations minted as NFTs
+  • Seasonal drops (e.g., "Summer Harvest" collection)
+  • Trade cosmetics with other players on secondary market
+  • Rare items provide small stat bonuses (5% yield, etc.)
+
+  On-Chain Leaderboard
+  • Weekly competition — most grams harvested
+  • Top 3 players receive small SOL prize pool
+  • Proof of score verified on-chain
+
+  Strain NFTs (planned, premium)
+  • Legendary strains available only as NFT purchases
+  • Carry across seasons / resets
+  • Can be traded, sold, or rented to other players
+
+WALLET-GATED CONTENT
+  • Free-to-play base game accessible to all (demo mode)
+  • Wallet connection unlocks: SOL balance display, NFT shop
+  • Real SOL transactions: wallet + small devnet test required
+  • Philosophy: wallet enhances, never gates core gameplay
+
+================================================================
+  12. COSMETICS & HOME CUSTOMIZATION
+================================================================
+
+CURRENT COSMETICS (shop, cash-only)
+  Item                 Price   Effect
+  ──────────────────── ─────── ─────────────────────────────
+  Neon Leaf Sign       $150    Glowing green wall decoration
+  Lava Lamp            $80     Ambient room lighting effect
+  Bob Marley Poster    $50     Wall art
+  Bean Bag Chair       $200    Furniture piece
+  Fish Tank            $350    Animated aquarium
+  Gold Bong Trophy     $1000   Prestige flex item
+  Disco Ball           $500    Rotating light effect
+
+PLANNED COSMETIC EXPANSIONS
+  • Character skin packs (different hoodie colors, accessories)
+  • House exterior paint (change your home's wall/roof color)
+  • Yard decorations (garden gnome, picket fence, flamingos)
+  • Interior themes ("Chill Vibes", "Industrial Lab", "Luxury")
+  • Pet: a cat that wanders your home scene
+  • Animated posters (looping pixel art animations on wall)
+
+NFT COSMETICS (Solana wallet required)
+  • "Genesis Collection" — 100 unique home decorations
+  • "Kingpin Pack" — exclusive character accessories (chains,
+    sunglasses variants, kicks)
+  • Seasonal: Halloween, 4/20 limited drops
+
+COSMETIC PHILOSOPHY
+  Cosmetics are purely visual. They never affect grow speed,
+  yield, or sale prices. Players buy them for self-expression
+  and status. This keeps the economy fair while creating
+  emotional investment in the player's space.
+
+================================================================
+  13. PLANNED FUTURE SYSTEMS
+================================================================
+
+HEAT SYSTEM
+  Growing and selling attracts attention. Heat meter 0–100.
+  High heat: police NPC patrols appear, random busts possible.
+  Lower heat: lay low (don't sell for 30 min), pay bribes.
+  Adds risk/reward tension to high-volume play.
+
+RIVAL DEALERS
+  After Stage 4, a rival NPC (Dimitri / other names) appears.
+  Competes for the same customers. Steals buyers you neglect.
+  Can be dealt with: outcompete them (better product), bribe
+  them to leave, or in later stages — partner with them.
+
+QUALITY TIERS
+  Low / Mid / Top / Exotic shelf grades.
+  Determined by strain, equipment, and care events.
+  Some customers only buy specific tiers (Mia = top shelf only).
+  Price premium: Top = +30%, Exotic = +80% base rate.
+
+CRAFTING / PROCESSING (planned)
+  Process raw grams into:
+  • Edibles (higher value, different customer market)
+  • Concentrates (smaller g quantity, much higher $/g)
+  • Pre-rolls (bulk sales, lower price, volume play)
+  Each product needs a processing item from the shop.
+
+MULTIPLAYER / CO-OP (long-term)
+  • See other players' characters on shared street scene
+  • Trade product peer-to-peer
+  • Form crews to take over zones together
+  • Crew hideout as a shared space
+
+MOBILE PORT
+  • Responsive layout for phones (vertical scroll view)
+  • Touch-friendly UI (larger buttons, swipe to move)
+  • Push notifications for "harvest ready"
+
+SEASONAL EVENTS
+  • 4/20 Festival — 2x prices for 24 hours
+  • Harvest Moon — faster grow speeds for a week
+  • Winter — new snowy map skin, holiday NPCs
+  • Summer — outdoor grow mechanic unlocked temporarily
+
+================================================================
+  CURRENT BUILD STATUS
+================================================================
+
+  ✅  Top-down street scene with 5 houses
+  ✅  Click-to-move player character
+  ✅  House selection as home base (start of game)
+  ✅  Enter own home to grow weed
+  ✅  Door-knocking on customer houses (no entry)
+  ✅  Locked house UI with unlock requirement shown
+  ✅  Progressive NPC unlock (4 contacts, milestone-gated)
+  ✅  Grow system (plant → timer → harvest → stash)
+  ✅  4-stage plant visual (seedling → flowering)
+  ✅  7 strains, 5 equipment, 5 locations, 7 cosmetics
+  ✅  HUD (SOL, cash, stash)
+  ✅  Shop panel with tabs
+  ✅  Phantom wallet connect (UI only, no tx yet)
+  ✅  NPC sell dialogs on street and at doors
+  ✅  Progression tracking (totalEarned, totalSales)
+
+  🔲  Grow timer notifications / offline progress
+  🔲  NPC demand cooldowns
+  🔲  Reputation system
+  🔲  Heat / risk system
+  🔲  Multi-plant slots (location-gated)
+  🔲  Quality tiers
+  🔲  Zone 2 (Downtown)
+  🔲  Rival dealer NPC
+  🔲  Real SOL transactions
+  🔲  NFT cosmetics shop
+  🔲  Leaderboard (on-chain)
+  🔲  Daily login bonus
+  🔲  Mobile layout
+
+================================================================
+  END OF DOCUMENT
+================================================================
