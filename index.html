@@ -260,6 +260,34 @@
     scrollbar-width: thin;
     scrollbar-color: #2d7a2d #0a0f0a;
 
+    /* Inventory panel */
+    #inventory-panel {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 440px;
+      background: rgba(4,14,4,0.97);
+      border: 2px solid #2d7a2d;
+      border-radius: 12px;
+      padding: 20px;
+      color: #b0ffb0;
+      font-family: 'Courier New', monospace;
+      z-index: 100;
+      display: none;
+      max-height: 78vh;
+      overflow-y: auto;
+    }
+    #inventory-panel h2 { color: #4caf50; margin-bottom: 14px; font-size: 16px; }
+    .inv-section { margin-bottom: 12px; }
+    .inv-section-title {
+      color: #4caf50; font-size: 9px; letter-spacing: 1px;
+      border-bottom: 1px solid #1a4a1a; padding-bottom: 3px; margin-bottom: 6px;
+    }
+    .inv-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px; }
+    .inv-qty { color: #ffd700; }
+    .inv-active-tag { color: #4caf50; font-size: 10px; margin-left: 6px; }
+    .inv-empty { color: #3a6a3a; font-size: 10px; font-style: italic; }
+
     /* Hotbar */
     #hotbar {
       position: absolute;
@@ -371,6 +399,13 @@
 
   <!-- Notification -->
   <div id="notif" id="notif"></div>
+
+  <!-- Inventory Panel -->
+  <div id="inventory-panel">
+    <button class="close-btn" onclick="closeInventory()">✕</button>
+    <h2>🎒 INVENTORY</h2>
+    <div id="inventory-content"></div>
+  </div>
 
   <!-- Hotbar -->
   <div id="hotbar">
