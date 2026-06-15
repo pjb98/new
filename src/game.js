@@ -37,6 +37,11 @@ const G = {
   heat: 0,                // 0–100, rises with sales, falls over time
   rep: 0,                 // reputation = totalEarned / 50
   scene: 'street',        // 'street' | 'home'
+
+  // Journal
+  journal: {
+    customers: {},          // { name: { sales, earned, lastSeen } }
+  },
 };
 
 // ---------- Shop Catalog ----------
@@ -663,6 +668,27 @@ class HomeScene extends Phaser.Scene {
     this.glowLayer.fillRect(7 * TILE - 8, 10 * TILE - 8, 4 * TILE + 16, 4 * TILE + 16);
     this.glowTween = null;
 
+    // ---- Animated fan blades (spin on top of static fan casing) ----
+    const fanCX = W - 118 + 22, fanCY = 72 + 22;
+    this.fanBladesG = this.add.graphics().setDepth(4);
+    this.fanBladesG.x = fanCX; this.fanBladesG.y = fanCY;
+    this.fanBladesG.fillStyle(0x777777, 0.92);
+    for (let i = 0; i < 4; i++) {
+      const r = (i / 4) * Math.PI * 2;
+      this.fanBladesG.fillEllipse(Math.cos(r) * 9, Math.sin(r) * 9, 20, 8);
+    }
+    this.fanBladesG.fillStyle(0x999999, 1); this.fanBladesG.fillCircle(0, 0, 5);
+    this.tweens.add({ targets: this.fanBladesG, angle: 360, duration: 700, repeat: -1, ease: 'Linear' });
+
+    // ---- Door ambient glow pulse ----
+    this.doorGlowG = this.add.graphics().setDepth(0).setAlpha(0.15);
+    this.doorGlowG.fillStyle(0x44ff44, 1);
+    this.doorGlowG.fillRect(W - TILE - 20, 9 * TILE - 20, TILE + 40, 3 * TILE + 40);
+    this.tweens.add({
+      targets: this.doorGlowG, alpha: { from: 0.08, to: 0.28 },
+      yoyo: true, repeat: -1, duration: 1500, ease: 'Sine.easeInOut',
+    });
+
     // ---- Player ----
     this.player = this.add.graphics();
     this.drawPlayer(this.player);
@@ -698,6 +724,7 @@ class HomeScene extends Phaser.Scene {
     this.bKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
     this.hKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.H);
     this.iKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I);
+    this.jKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
 
     this.eKeyDown = false;
     this.bKeyDown = false;
@@ -1158,63 +1185,67 @@ class HomeScene extends Phaser.Scene {
   }
 
   tickGrow() {
-    if (!G.plant) return;
+    const idle = document.getElementById('grow-idle-state');
+    const active = document.getElementById('grow-active-state');
+
+    if (!G.plant) {
+      if (idle)   idle.style.display   = 'block';
+      if (active) active.style.display = 'none';
+      return;
+    }
+    if (idle)   idle.style.display   = 'none';
+    if (active) active.style.display = 'block';
+
     const pct = this.growPercent();
     document.getElementById('grow-bar').style.width = (pct * 100) + '%';
 
-    // Stage name
-    let stageName;
-    if (pct < 0.15)      stageName = '🌱 Seedling';
-    else if (pct < 0.4)  stageName = '🌿 Vegetative';
-    else if (pct < 0.8)  stageName = '💪 Flowering';
-    else if (pct < 1)    stageName = '🌸 Ripening';
-    else                 stageName = '✅ READY TO HARVEST';
-    document.getElementById('grow-stage').textContent = `Stage: ${stageName}`;
+    // Strain name
+    document.getElementById('strain-name').textContent = G.plant.strain;
 
-    // Timer countdown
+    // Stage badge
+    let stageName, stageColor;
+    if (pct < 0.15)      { stageName = '🌱 Seedling';  stageColor = '#88ff88'; }
+    else if (pct < 0.4)  { stageName = '🌿 Vegetative'; stageColor = '#44ff44'; }
+    else if (pct < 0.8)  { stageName = '💪 Flowering';  stageColor = '#ffcc44'; }
+    else if (pct < 1)    { stageName = '🌸 Ripening';   stageColor = '#ff88cc'; }
+    else                 { stageName = '✅ READY';       stageColor = '#ffffff'; }
+    const stEl = document.getElementById('grow-stage');
+    stEl.textContent = stageName; stEl.style.color = stageColor;
+
+    // Timer
     const timerEl = document.getElementById('grow-timer');
     if (pct < 1) {
       const rem = G.plant.growTime * (1 - pct);
       const m = Math.floor(rem / 60), s = Math.floor(rem % 60);
-      timerEl.textContent = `⏱ ${m}m ${s < 10 ? '0' : ''}${s}s remaining`;
-      timerEl.style.display = 'block';
-    } else {
-      timerEl.style.display = 'none';
-    }
+      timerEl.textContent = `${m}m ${s < 10 ? '0' : ''}${s}s left`;
+    } else { timerEl.textContent = ''; }
 
     // Expected yield
-    const yieldEl = document.getElementById('grow-yield-preview');
-    yieldEl.textContent = `📦 Expected: ~${G.plant.yieldG}g`;
-    yieldEl.style.display = 'block';
+    document.getElementById('grow-yield-preview').textContent = `~${G.plant.yieldG}g`;
 
-    // Quality tier
+    // Quality
     const strain = SHOP.strains.find(s => s.id === G.plant.strain);
     const qualityEl = document.getElementById('grow-quality');
     let quality, qualColor;
-    if (!strain || strain.price === 0) { quality = '⚪ Common'; qualColor = '#aaaaaa'; }
-    else if (strain.price < 300)       { quality = '🟢 Good';    qualColor = '#7fff7f'; }
-    else if (strain.price < 800)       { quality = '🟣 Exotic';  qualColor = '#cc88ff'; }
+    if (!strain || strain.price === 0) { quality = '⚪ Common';    qualColor = '#aaaaaa'; }
+    else if (strain.price < 300)       { quality = '🟢 Good';      qualColor = '#7fff7f'; }
+    else if (strain.price < 800)       { quality = '🟣 Exotic';    qualColor = '#cc88ff'; }
     else                               { quality = '🟡 Legendary'; qualColor = '#ffd700'; }
-    qualityEl.textContent = quality;
+    qualityEl.textContent = `Quality: ${quality}`;
     qualityEl.style.color = qualColor;
-    qualityEl.style.display = 'block';
 
-    document.getElementById('grow-status').textContent = pct >= 1 ? '' : `Growing... ${Math.floor(pct * 100)}%`;
+    document.getElementById('grow-status').textContent = pct >= 1 ? '✂️ Ready to harvest!' : '';
     document.getElementById('harvest-btn').style.display = pct >= 1 ? 'block' : 'none';
     this.updatePlantSprite();
 
-    // Grow zone glow — shows when plant is active
-    if (this.glowLayer) {
-      if (!this.glowTween) {
-        this.glowLayer.setAlpha(pct >= 1 ? 0.8 : 0.4);
-        this.glowTween = this.tweens.add({
-          targets: this.glowLayer, alpha: { from: pct >= 1 ? 0.8 : 0.3, to: pct >= 1 ? 0.25 : 0.1 },
-          yoyo: true, repeat: -1, duration: pct >= 1 ? 500 : 1200, ease: 'Sine.easeInOut',
-        });
-      }
+    // Grow zone glow
+    if (this.glowLayer && !this.glowTween) {
+      this.glowTween = this.tweens.add({
+        targets: this.glowLayer, alpha: { from: pct >= 1 ? 0.6 : 0.25, to: pct >= 1 ? 0.2 : 0.06 },
+        yoyo: true, repeat: -1, duration: pct >= 1 ? 500 : 1200, ease: 'Sine.easeInOut',
+      });
     }
 
-    // Plant pulse when ready
     if (pct >= 1 && !this.plantTween) {
       this.plantTween = this.tweens.add({
         targets: this.plantG, alpha: { from: 1, to: 0.65 },
@@ -1258,13 +1289,11 @@ class HomeScene extends Phaser.Scene {
     G.stash += y;
     G.plant = null;
     document.getElementById('grow-bar').style.width = '0%';
-    document.getElementById('grow-status').textContent = 'No plant growing';
-    document.getElementById('grow-stage').textContent = 'Stage: —';
     document.getElementById('harvest-btn').style.display = 'none';
-    document.getElementById('grow-timer').style.display = 'none';
-    document.getElementById('grow-yield-preview').style.display = 'none';
-    document.getElementById('grow-quality').style.display = 'none';
-    document.getElementById('strain-name').textContent = '—';
+    const idleEl = document.getElementById('grow-idle-state');
+    const activeEl = document.getElementById('grow-active-state');
+    if (idleEl)   idleEl.style.display   = 'block';
+    if (activeEl) activeEl.style.display = 'none';
     if (this.plantTween) { this.plantTween.stop(); this.plantTween = null; this.plantG.alpha = 1; }
     if (this.glowTween)  { this.glowTween.stop();  this.glowTween = null; }
     if (this.glowLayer)   this.glowLayer.setAlpha(0);
@@ -1366,6 +1395,7 @@ class HomeScene extends Phaser.Scene {
 
     if (Phaser.Input.Keyboard.JustDown(this.bKey)) openShop();
     if (Phaser.Input.Keyboard.JustDown(this.iKey)) openInventory();
+    if (Phaser.Input.Keyboard.JustDown(this.jKey)) openJournal();
   }
 }
 
@@ -1403,6 +1433,7 @@ class StreetScene extends Phaser.Scene {
     this.hKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.H);
     this.bKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
     this.iKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I);
+    this.jKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
 
     this.nearNPC = null;
 
@@ -1763,6 +1794,7 @@ class StreetScene extends Phaser.Scene {
 
     if (Phaser.Input.Keyboard.JustDown(this.bKey)) openShop();
     if (Phaser.Input.Keyboard.JustDown(this.iKey)) openInventory();
+    if (Phaser.Input.Keyboard.JustDown(this.jKey)) openJournal();
 
     // === NPC PROXIMITY (street wanderers) ===
     if (!nearDoor) {
@@ -1796,6 +1828,10 @@ class StreetScene extends Phaser.Scene {
             G.stash -= want; G.cash += total;
             G.totalEarned += total; G.totalSales++;
             G.heat = Math.min(100, G.heat + 15);
+            if (!G.journal.customers[npc.name]) G.journal.customers[npc.name] = { sales: 0, earned: 0, lastSeen: 0 };
+            G.journal.customers[npc.name].sales++;
+            G.journal.customers[npc.name].earned += total;
+            G.journal.customers[npc.name].lastSeen = Date.now();
             closeDialog();
             const repGain = Math.floor(total / 50);
             floatText(this, this.player.x, this.player.y - 40, `+$${total}`, '#ffd700');
@@ -1828,6 +1864,10 @@ class StreetScene extends Phaser.Scene {
             G.stash -= want; G.cash += total;
             G.totalEarned += total; G.totalSales++;
             G.heat = Math.min(100, G.heat + 12);
+            if (!G.journal.customers[npc.name]) G.journal.customers[npc.name] = { sales: 0, earned: 0, lastSeen: 0 };
+            G.journal.customers[npc.name].sales++;
+            G.journal.customers[npc.name].earned += total;
+            G.journal.customers[npc.name].lastSeen = Date.now();
             closeDialog();
             const repGain = Math.floor(total / 50);
             floatText(this, this.player.x, this.player.y - 40, `+$${total}`, '#ffd700');
@@ -2065,73 +2105,164 @@ function openInventory() {
   const panel = document.getElementById('inventory-panel');
   const content = document.getElementById('inventory-content');
 
-  const row = (label, val, tag) =>
-    `<div class="inv-row"><span>${label}</span><span><span class="inv-qty">${val}</span>${tag ? `<span class="inv-active-tag">${tag}</span>` : ''}</span></div>`;
+  const statRow = (label, val) =>
+    `<div class="inv-stat-label">${label}</div><div class="inv-stat-val">${val}</div>`;
+  const itemRow = (label, tag) =>
+    `<div class="inv-item-row"><span>${label}</span>${tag ? `<span class="inv-active-tag">▶ ACTIVE</span>` : ''}</div>`;
 
-  const strainRows = G.owned.strains.map(id => {
-    const s = SHOP.strains.find(x => x.id === id);
-    return row(s?.name || id, '', id === G.activeStrain ? '▶ ACTIVE' : '');
-  }).join('');
-
-  const equipRows = G.owned.equipment.map(id => {
-    const e = SHOP.equipment.find(x => x.id === id);
-    return row(e?.name || id, '', id === G.activeEquipment ? '▶ ACTIVE' : '');
-  }).join('');
-
-  const locRows = G.owned.locations.map(id => {
-    const l = SHOP.locations.find(x => x.id === id);
-    return row(l?.name || id, '', id === G.activeLocation ? '▶ ACTIVE' : '');
-  }).join('');
-
-  const cosRows = G.owned.cosmetics.length
-    ? G.owned.cosmetics.map(id => `<div class="inv-row"><span>✨ ${id}</span></div>`).join('')
-    : `<div class="inv-empty">None yet — visit the shop</div>`;
-
-  const nextLoc = SHOP.locations.find(l => !G.owned.locations.includes(l.id));
-  const nextEquip = SHOP.equipment.find(e => !G.owned.equipment.includes(e.id));
-  const nextUpgrade = nextLoc || nextEquip;
-  const upgradeRow = nextUpgrade
-    ? `<div class="inv-row" style="color:#5a9a5a">
-        <span>Next: ${nextUpgrade.name}</span>
-        <span class="inv-qty">${nextUpgrade.price - G.cash > 0 ? `Need $${nextUpgrade.price - G.cash} more` : '✅ Can buy now!'}</span>
-       </div>`
-    : `<div class="inv-row" style="color:#4caf50"><span>🏆 Fully upgraded!</span></div>`;
+  const nextLoc  = SHOP.locations.find(l => !G.owned.locations.includes(l.id));
+  const nextEquip= SHOP.equipment.find(e => !G.owned.equipment.includes(e.id));
+  const next     = nextLoc || nextEquip;
+  const canAfford = next && G.cash >= next.price;
+  const needMore  = next ? next.price - G.cash : 0;
 
   content.innerHTML = `
-    <div class="inv-section">
-      <div class="inv-section-title">── STASH ───────────────────────</div>
-      ${row('🌿 Total Stash', G.stash + 'g')}
-      ${row('💵 Cash', '$' + G.cash)}
-      ${row('💵 Lifetime Earned', '$' + G.totalEarned)}
-      ${row('🤝 Sales Made', G.totalSales)}
-      ${row('⭐ Rep Level', Math.floor(G.totalEarned / 50))}
-    </div>
-    <div class="inv-section">
-      <div class="inv-section-title">── STRAINS ─────────────────────</div>
-      ${strainRows}
-    </div>
-    <div class="inv-section">
-      <div class="inv-section-title">── EQUIPMENT ───────────────────</div>
-      ${equipRows}
-    </div>
-    <div class="inv-section">
-      <div class="inv-section-title">── LOCATIONS ───────────────────</div>
-      ${locRows}
-    </div>
-    <div class="inv-section">
-      <div class="inv-section-title">── COSMETICS ───────────────────</div>
-      ${cosRows}
-    </div>
-    <div class="inv-section">
-      <div class="inv-section-title">── NEXT UPGRADE ────────────────</div>
-      ${upgradeRow}
-    </div>
+    <details class="inv-category" open>
+      <summary>📊 STATS <span class="inv-cat-arrow">▾</span></summary>
+      <div class="inv-cat-body"><div class="inv-stat-grid">
+        ${statRow('🌿 Stash', G.stash + 'g')}
+        ${statRow('💵 Cash', '$' + G.cash)}
+        ${statRow('📈 Earned', '$' + G.totalEarned)}
+        ${statRow('🤝 Sales', G.totalSales)}
+        ${statRow('⭐ Rep', 'Lv ' + Math.floor(G.totalEarned / 50))}
+        ${statRow('🔥 Heat', G.heat + '%')}
+      </div></div>
+    </details>
+    <details class="inv-category" open>
+      <summary>🌱 STRAINS (${G.owned.strains.length}) <span class="inv-cat-arrow">▾</span></summary>
+      <div class="inv-cat-body">
+        ${G.owned.strains.map(id => { const s = SHOP.strains.find(x => x.id === id); return itemRow(s?.name || id, id === G.activeStrain); }).join('')}
+      </div>
+    </details>
+    <details class="inv-category">
+      <summary>⚙️ EQUIPMENT (${G.owned.equipment.length}) <span class="inv-cat-arrow">▾</span></summary>
+      <div class="inv-cat-body">
+        ${G.owned.equipment.map(id => { const e = SHOP.equipment.find(x => x.id === id); return itemRow(e?.name || id, id === G.activeEquipment); }).join('')}
+      </div>
+    </details>
+    <details class="inv-category">
+      <summary>📍 LOCATIONS (${G.owned.locations.length}) <span class="inv-cat-arrow">▾</span></summary>
+      <div class="inv-cat-body">
+        ${G.owned.locations.map(id => { const l = SHOP.locations.find(x => x.id === id); return itemRow(l?.name || id, id === G.activeLocation); }).join('')}
+      </div>
+    </details>
+    <details class="inv-category">
+      <summary>✨ COSMETICS (${G.owned.cosmetics.length}) <span class="inv-cat-arrow">▾</span></summary>
+      <div class="inv-cat-body">
+        ${G.owned.cosmetics.length ? G.owned.cosmetics.map(id => itemRow('✨ ' + id, false)).join('') : '<div class="inv-empty">None yet — visit the shop</div>'}
+      </div>
+    </details>
+    ${next ? `
+    <details class="inv-category" open>
+      <summary>🎯 NEXT UPGRADE <span class="inv-cat-arrow">▾</span></summary>
+      <div class="inv-cat-body">
+        <div class="inv-item-row" style="color:${canAfford ? '#4caf50' : '#5a9a5a'}">
+          <span>${next.name}</span>
+          <span style="color:${canAfford ? '#4caf50' : '#ffd700'}">${canAfford ? '✅ Buy now!' : `Need $${needMore}`}</span>
+        </div>
+        <div class="goal-bar-outer" style="margin-top:4px"><div class="goal-bar-inner" style="width:${Math.min(G.cash / next.price * 100, 100)}%"></div></div>
+      </div>
+    </details>` : '<div style="color:#4caf50;font-size:11px;padding:6px 0;">🏆 Fully upgraded!</div>'}
   `;
   panel.style.display = 'block';
 }
 
 function closeInventory() {
   document.getElementById('inventory-panel').style.display = 'none';
+}
+
+// ========================
+// JOURNAL
+// ========================
+
+let activeJournalTab = 'goals';
+
+function openJournal() {
+  document.getElementById('journal-panel').style.display = 'block';
+  renderJournalTab(activeJournalTab);
+}
+
+function closeJournal() {
+  document.getElementById('journal-panel').style.display = 'none';
+}
+
+function renderJournalTab(tab) {
+  activeJournalTab = tab;
+  document.querySelectorAll('.journal-tab').forEach(t => {
+    t.classList.toggle('active', t.textContent.toLowerCase().includes(tab.toLowerCase().slice(0,4)));
+  });
+  const content = document.getElementById('journal-content');
+
+  if (tab === 'goals') {
+    const goals = [
+      { text: 'Choose your home base',           done: G.homeHouseIdx >= 0,                  progress: G.homeHouseIdx >= 0 ? 1 : 0, total: 1 },
+      { text: 'Make your first sale',            done: G.totalSales >= 1,                    progress: Math.min(G.totalSales, 1), total: 1 },
+      { text: 'Unlock Contact #3 ($80 earned)',  done: G.totalEarned >= 80,                  progress: Math.min(G.totalEarned, 80), total: 80 },
+      { text: 'Unlock Contact #4 ($250 earned)', done: G.totalEarned >= 250,                 progress: Math.min(G.totalEarned, 250), total: 250 },
+      { text: 'Buy Hydro Kit ($300)',            done: G.owned.equipment.includes('Hydro Kit'), progress: G.owned.equipment.includes('Hydro Kit') ? 1 : Math.min(G.cash, 300), total: 300 },
+      { text: 'Upgrade to Garage ($400)',        done: G.owned.locations.includes('Garage'), progress: G.owned.locations.includes('Garage') ? 1 : Math.min(G.cash, 400), total: 400 },
+      { text: 'Earn $1000 total',                done: G.totalEarned >= 1000,                progress: Math.min(G.totalEarned, 1000), total: 1000 },
+      { text: 'Buy LED Grow Tent ($600)',        done: G.owned.equipment.includes('LED Tent'), progress: G.owned.equipment.includes('LED Tent') ? 1 : Math.min(G.cash, 600), total: 600 },
+    ];
+    const done = goals.filter(g => g.done).length;
+    content.innerHTML = `
+      <div class="journal-section-title">── GOALS ${done}/${goals.length} COMPLETE ──</div>
+      ${goals.map(g => `
+        <div class="goal-row ${g.done ? 'goal-done' : 'goal-pending'}">
+          <div class="goal-title">${g.done ? '✅' : '◻️'} ${g.text}</div>
+          ${!g.done ? `<div class="goal-bar-outer"><div class="goal-bar-inner" style="width:${Math.floor(g.progress / g.total * 100)}%"></div></div>
+          <div style="font-size:9px;color:#3a6a3a;">${Math.floor(g.progress / g.total * 100)}% complete</div>` : ''}
+        </div>
+      `).join('')}
+    `;
+
+  } else if (tab === 'customers') {
+    const met = Object.entries(G.journal.customers);
+    const allNPCs = NPCS.slice(0, 5);
+    content.innerHTML = `
+      <div class="journal-section-title">── KNOWN CONTACTS ${met.length}/${allNPCs.length} ──</div>
+      ${met.length === 0 ? '<div style="color:#3a6a3a;font-size:10px;font-style:italic;padding:8px 0;">No contacts yet — make a sale to add one</div>' : ''}
+      ${met.map(([name, data]) => {
+        const npc = NPCS.find(n => n.name === name);
+        const minAgo = Math.floor((Date.now() - data.lastSeen) / 60000);
+        const timeStr = minAgo < 1 ? 'Just now' : minAgo < 60 ? `${minAgo}m ago` : 'Earlier';
+        return `
+          <div class="contact-card">
+            <div class="contact-name">${name}</div>
+            <div class="journal-row"><span class="jlabel">Sales</span><span class="jval">${data.sales}</span></div>
+            <div class="journal-row"><span class="jlabel">Total paid</span><span class="jval">$${data.earned}</span></div>
+            ${npc ? `<div class="journal-row"><span class="jlabel">Buys</span><span class="jval">${npc.want[0]}–${npc.want[1]}g</span></div>` : ''}
+            ${npc ? `<div class="journal-row"><span class="jlabel">Pays</span><span class="jval">$${npc.pricePerG[0]}–$${npc.pricePerG[1]}/g</span></div>` : ''}
+            <div class="contact-meta">Last seen: ${timeStr}</div>
+          </div>
+        `;
+      }).join('')}
+      ${allNPCs.filter(n => !G.journal.customers[n.name]).map(n => `
+        <div class="contact-card" style="opacity:0.4">
+          <div class="contact-name">??? (Locked)</div>
+          <div class="contact-meta">Complete goals to unlock more contacts</div>
+        </div>
+      `).slice(0, Math.max(0, allNPCs.length - met.length)).join('')}
+    `;
+
+  } else if (tab === 'lore') {
+    const houseName = G.homeHouseIdx >= 0 ? STREET_HOUSES[G.homeHouseIdx].name : 'Unknown';
+    content.innerHTML = `
+      <div class="journal-section-title">── YOUR STORY ──</div>
+      <div style="font-size:11px;line-height:1.8;color:#7a9a7a;padding:4px 0;">
+        <p style="margin-bottom:8px;">You moved into <span style="color:#fff">${houseName}</span> with nothing but $${G.homeHouseIdx >= 0 ? '250' : '—'} and a dream.</p>
+        <p style="margin-bottom:8px;">Total earned so far: <span style="color:#ffd700">$${G.totalEarned}</span></p>
+        <p style="margin-bottom:8px;">Reputation on The Block: <span style="color:#cc88ff">Level ${Math.floor(G.totalEarned / 50)}</span></p>
+      </div>
+      <div class="journal-section-title">── THE BLOCK ──</div>
+      ${STREET_HOUSES.map((h, i) => `
+        <div class="journal-row">
+          <span class="jlabel">${h.name}</span>
+          <span class="jval">${i === G.homeHouseIdx ? '🏠 Your home' : isHouseCustomerUnlocked(i) ? '✅ Contact known' : '🔒 Unknown'}</span>
+        </div>
+      `).join('')}
+    `;
+  }
 }
 
 function updateHUD() {

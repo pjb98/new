@@ -135,31 +135,92 @@
     #grow-panel {
       position: absolute;
       bottom: 8px; left: 8px;
-      background: rgba(5,15,5,0.9);
+      background: rgba(4,14,4,0.94);
       border: 1px solid #2d7a2d;
-      border-radius: 8px;
-      padding: 10px 14px;
+      border-radius: 10px;
+      padding: 12px 16px;
       color: #b0ffb0;
-      font-size: 11px;
       font-family: 'Courier New', monospace;
       z-index: 10;
-      min-width: 180px;
+      min-width: 192px; max-width: 210px;
       pointer-events: all;
     }
-    #grow-panel .label { color: #4caf50; font-size: 10px; margin-bottom: 4px; }
+    #grow-panel .grow-header {
+      color: #4caf50; font-size: 10px; letter-spacing: 2px; font-weight: bold;
+      margin-bottom: 8px; border-bottom: 1px solid #1a4a1a; padding-bottom: 5px;
+    }
+    #grow-idle-state { color: #5a9a5a; }
+    #grow-idle-msg { font-size: 11px; font-style: italic; margin-bottom: 6px; }
+    #grow-idle-hint { font-size: 10px; line-height: 1.7; color: #3a6a3a; }
+    #grow-idle-hint .key-hint { color: #ffd700; font-style: normal; }
+    #grow-strain-line { color: #fff; font-size: 14px; font-weight: bold; margin-bottom: 2px; }
+    #grow-stage-line { color: #7fff7f; font-size: 10px; margin-bottom: 6px; }
+    .grow-meta-row { display: flex; justify-content: space-between; font-size: 10px; margin-top: 4px; }
     .progress-bar-outer {
-      background: #0a1f0a;
-      border: 1px solid #2d7a2d;
-      border-radius: 4px;
-      height: 8px;
-      margin: 3px 0 6px;
-      overflow: hidden;
+      background: #0a1f0a; border: 1px solid #2d7a2d;
+      border-radius: 4px; height: 9px; overflow: hidden;
     }
     .progress-bar-inner {
       height: 100%;
       background: linear-gradient(90deg, #2d7a2d, #4caf50);
-      transition: width 0.5s;
+      transition: width 0.8s ease;
     }
+
+    /* Inventory - collapsible */
+    .inv-category { margin-bottom: 4px; }
+    .inv-category > summary {
+      color: #4caf50; font-size: 10px; letter-spacing: 1px;
+      cursor: pointer; padding: 5px 0;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid #1a4a1a; user-select: none; list-style: none;
+    }
+    .inv-category > summary::-webkit-details-marker { display: none; }
+    .inv-cat-body { padding: 5px 2px 2px; }
+    .inv-stat-grid {
+      display: grid; grid-template-columns: 1fr auto;
+      gap: 4px 14px; padding: 2px 0;
+    }
+    .inv-stat-label { color: #7a9a7a; font-size: 11px; }
+    .inv-stat-val { color: #ffd700; font-size: 11px; text-align: right; font-weight: bold; }
+    .inv-item-row { font-size: 11px; color: #b0ffb0; padding: 3px 0; display: flex; justify-content: space-between; }
+    .inv-active-tag { color: #4caf50; font-size: 9px; padding-left: 6px; }
+    .inv-empty { color: #3a6a3a; font-size: 10px; font-style: italic; padding: 4px 0; }
+
+    /* Journal panel */
+    #journal-panel {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 460px;
+      background: rgba(4,14,4,0.97);
+      border: 2px solid #2d7a2d; border-radius: 12px;
+      padding: 20px; color: #b0ffb0;
+      font-family: 'Courier New', monospace;
+      z-index: 100; display: none; max-height: 78vh; overflow-y: auto;
+    }
+    #journal-panel h2 { color: #4caf50; margin-bottom: 12px; font-size: 16px; }
+    .journal-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+    .journal-tab {
+      padding: 4px 14px; border: 1px solid #2d7a2d; border-radius: 4px;
+      background: rgba(0,30,0,0.5); color: #7fff7f; cursor: pointer;
+      font-size: 11px; font-family: 'Courier New'; transition: background 0.15s;
+    }
+    .journal-tab.active { background: #1a5c1a; border-color: #4caf50; color: #fff; }
+    .journal-section-title {
+      color: #4caf50; font-size: 9px; letter-spacing: 1px;
+      border-bottom: 1px solid #1a4a1a; padding-bottom: 3px; margin: 10px 0 6px;
+    }
+    .journal-row { font-size: 11px; padding: 3px 0; display: flex; justify-content: space-between; }
+    .journal-row .jlabel { color: #7a9a7a; }
+    .journal-row .jval { color: #ffd700; }
+    .goal-row { font-size: 11px; padding: 5px 0; border-bottom: 1px solid #0a2a0a; }
+    .goal-title { margin-bottom: 3px; }
+    .goal-done .goal-title { color: #4caf50; }
+    .goal-pending .goal-title { color: #5a9a5a; }
+    .goal-bar-outer { background: #0a1f0a; border: 1px solid #1a4a1a; border-radius: 3px; height: 5px; margin: 3px 0; }
+    .goal-bar-inner { height: 100%; background: linear-gradient(90deg, #1a5c1a, #4caf50); border-radius: 3px; transition: width 0.5s; }
+    .contact-card { border: 1px solid #1a4a1a; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; }
+    .contact-name { color: #fff; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
+    .contact-meta { color: #5a9a5a; font-size: 9px; margin-top: 2px; }
 
     /* Controls hint */
     #controls-hint {
@@ -359,16 +420,25 @@
 
   <!-- Grow panel -->
   <div id="grow-panel">
-    <div class="label">ACTIVE GROW</div>
-    <div id="strain-name" style="color:#fff;font-size:12px;margin-bottom:2px;">—</div>
-    <div id="grow-stage" style="color:#5a9a5a;font-size:9px;margin-bottom:4px;">Stage: —</div>
-    <div class="label">GROWTH</div>
-    <div class="progress-bar-outer"><div class="progress-bar-inner" id="grow-bar" style="width:0%"></div></div>
-    <div id="grow-status" style="color:#5a9a5a;font-size:10px;">No plant growing</div>
-    <div id="grow-timer" style="color:#aaaaaa;font-size:9px;margin-top:2px;display:none;"></div>
-    <div id="grow-yield-preview" style="color:#7fff7f;font-size:9px;display:none;"></div>
-    <div id="grow-quality" style="font-size:9px;margin-top:2px;display:none;"></div>
-    <button id="harvest-btn" style="margin-top:6px;display:none;background:#1a5c1a;border:1px solid #4caf50;border-radius:4px;padding:3px 10px;color:#7fff7f;cursor:pointer;font-family:'Courier New',monospace;font-size:11px;">🌿 HARVEST</button>
+    <div class="grow-header">🌿 ACTIVE GROW</div>
+    <div id="grow-idle-state">
+      <div id="grow-idle-msg">No active plant</div>
+      <div id="grow-idle-hint">
+        Walk to grow zone<br>Press <span class="key-hint">[E]</span> to plant
+      </div>
+    </div>
+    <div id="grow-active-state" style="display:none">
+      <div id="strain-name" id="grow-strain-line"></div>
+      <div id="grow-stage" id="grow-stage-line"></div>
+      <div class="progress-bar-outer"><div class="progress-bar-inner" id="grow-bar" style="width:0%"></div></div>
+      <div class="grow-meta-row">
+        <span id="grow-yield-preview" style="color:#7fff7f;"></span>
+        <span id="grow-timer" style="color:#888;"></span>
+      </div>
+      <div id="grow-quality" style="font-size:9px;margin-top:3px;"></div>
+      <div id="grow-status" style="color:#4caf50;font-size:10px;margin-top:3px;"></div>
+      <button id="harvest-btn" style="display:none;margin-top:8px;width:100%;background:linear-gradient(135deg,#1a5c1a,#2d8a2d);border:1px solid #4caf50;border-radius:5px;padding:6px;color:#fff;cursor:pointer;font-family:'Courier New',monospace;font-size:12px;letter-spacing:2px;">✂️ HARVEST</button>
+    </div>
   </div>
 
   <!-- Controls hint -->
@@ -407,12 +477,24 @@
     <div id="inventory-content"></div>
   </div>
 
+  <!-- Journal Panel -->
+  <div id="journal-panel">
+    <button class="close-btn" onclick="closeJournal()">✕</button>
+    <h2>📓 JOURNAL</h2>
+    <div class="journal-tabs">
+      <button class="journal-tab active" onclick="renderJournalTab('goals')">Goals</button>
+      <button class="journal-tab" onclick="renderJournalTab('customers')">Contacts</button>
+      <button class="journal-tab" onclick="renderJournalTab('lore')">Lore</button>
+    </div>
+    <div id="journal-content"></div>
+  </div>
+
   <!-- Hotbar -->
   <div id="hotbar">
     <div class="hotkey" onclick="openShop()"><span class="key">B</span> Shop</div>
     <div class="hotkey" onclick="openInventory()"><span class="key">I</span> Inventory</div>
     <div class="hotkey"><span class="key">M</span> Map</div>
-    <div class="hotkey"><span class="key">J</span> Journal</div>
+    <div class="hotkey" onclick="openJournal()"><span class="key">J</span> Journal</div>
   </div>
 </div>
 
