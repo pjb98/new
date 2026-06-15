@@ -697,6 +697,7 @@ class HomeScene extends Phaser.Scene {
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.bKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
     this.hKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.H);
+    this.iKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I);
 
     this.eKeyDown = false;
     this.bKeyDown = false;
@@ -721,24 +722,28 @@ class HomeScene extends Phaser.Scene {
     // ---- Grow timer ----
     this.time.addEvent({ delay: 1000, loop: true, callback: this.tickGrow, callbackScope: this });
 
-    // ---- Door label ----
-    this.add.text(W - 80, H / 2 - 10, '[ EXIT ]', {
-      fontSize: '11px', color: '#44cc44', fontFamily: 'Courier New',
-      stroke: '#000000', strokeThickness: 2,
-    }).setDepth(3);
+    // ---- Exit door proximity hint (shown when near door) ----
+    this.exitHint = this.add.text(W - TILE - 18, 9 * TILE - 34, '[E] Leave House', {
+      fontSize: '10px', color: '#44ff44', fontFamily: 'Courier New',
+      backgroundColor: 'rgba(0,0,0,0.75)', padding: { x: 5, y: 3 },
+      stroke: '#000000', strokeThickness: 1,
+    }).setDepth(8).setOrigin(0.5, 1).setVisible(false);
 
     // ---- Shop sign ----
     this.shopZone = this.add.text(60, 60, '🛒 SHOP', {
-      fontSize: '14px', color: '#ffffff', fontFamily: 'Courier New',
+      fontSize: '13px', color: '#ffffff', fontFamily: 'Courier New',
       backgroundColor: '#cc5500', padding: { x: 6, y: 4 },
     }).setInteractive({ useHandCursor: true }).setDepth(3);
     this.shopZone.on('pointerdown', () => openShop());
 
-    // ---- Planting zone label ----
-    this.add.text(248, 410, 'Grow Zone', {
-      fontSize: '9px', color: '#ffffff', fontFamily: 'Courier New',
-      stroke: '#553300', strokeThickness: 2,
-    }).setDepth(1);
+    // ---- Grow zone interaction label (shown when near, no plant) ----
+    this.growHint = this.add.text(290, 9 * TILE - 10, '[E] Plant here', {
+      fontSize: '10px', color: '#88ff44', fontFamily: 'Courier New',
+      backgroundColor: 'rgba(0,20,0,0.8)', padding: { x: 5, y: 3 },
+    }).setDepth(8).setOrigin(0.5, 1).setVisible(false);
+
+    // ---- Idle bob animation ----
+    this.playerBobBase = this.player.y;
 
     updateHUD();
   }
@@ -778,17 +783,37 @@ class HomeScene extends Phaser.Scene {
       drawTile(g, cols - 1, y, wC, wB);
     }
 
-    // Door on right wall
-    for (let y = 9; y <= 11; y++) drawTile(g, cols - 1, y, 0x44cc44, 0x88ff88);
-    // Door frame highlight
-    g.fillStyle(0x88ff88, 0.3);
-    g.fillRect(W - TILE - 2, 9 * TILE - 2, TILE + 4, 3 * TILE + 4);
-    // Exit sign above door
-    g.fillStyle(0x003300, 1); g.fillRect(W - TILE - 14, 8 * TILE + 6, 42, 14);
-    g.fillStyle(0x44ff44, 0.9); g.fillRect(W - TILE - 12, 8 * TILE + 8, 38, 10);
+    // === EXIT DOOR — proper sprite, not placeholder tiles ===
+    const dX = W - TILE, dY = 9 * TILE, dH = 3 * TILE;
+    // Outer glow halo
+    g.fillStyle(0x44ff44, 0.08); g.fillRect(dX - 20, dY - 20, TILE + 40, dH + 40);
+    g.fillStyle(0x44ff44, 0.14); g.fillRect(dX - 8, dY - 8, TILE + 16, dH + 16);
+    // Wall fill behind door (wall color)
+    g.fillStyle(wC, 1); g.fillRect(dX, dY, TILE, dH);
+    // Door architrave (stone frame)
+    g.fillStyle(0xccbbaa, 1); g.fillRect(dX - 6, dY - 6, TILE + 12, dH + 6);
+    g.fillStyle(0x888878, 1); g.fillRect(dX - 4, dY - 4, TILE + 8, dH + 4);
+    // Door surface (dark wood)
+    g.fillStyle(0x3a2008, 1); g.fillRect(dX, dY, TILE, dH);
+    // Door panels
+    const panH2 = Math.floor((dH - 16) / 2);
+    g.fillStyle(0x2a1404, 1);
+    g.fillRoundedRect(dX + 5, dY + 6, TILE - 10, panH2, 2);
+    g.fillRoundedRect(dX + 5, dY + panH2 + 10, TILE - 10, panH2, 2);
+    g.fillStyle(0x5a3010, 0.4);
+    g.fillRect(dX + 5, dY + 6, TILE - 10, 2);
+    g.fillRect(dX + 5, dY + panH2 + 10, TILE - 10, 2);
+    // Door knob (gold)
+    g.fillStyle(0xffd700, 1); g.fillCircle(dX + 7, dY + dH * 0.55, 5);
+    g.fillStyle(0xffaa00, 1); g.fillCircle(dX + 7, dY + dH * 0.55, 3);
+    // Green light seam (glowing crack around door — light from outside)
+    g.lineStyle(2, 0x44ff44, 0.6); g.strokeRect(dX - 1, dY - 1, TILE + 2, dH + 2);
+    g.lineStyle(1, 0x88ff88, 0.3); g.strokeRect(dX - 3, dY - 3, TILE + 6, dH + 6);
+    // EXIT sign above door
+    g.fillStyle(0x003300, 1); g.fillRoundedRect(dX - 10, dY - 22, TILE + 20, 18, 3);
+    g.fillStyle(0x44ff44, 0.9); g.fillRect(dX - 7, dY - 19, TILE + 14, 12);
     g.fillStyle(0x001a00, 1);
-    // EXIT text approximated as blocks
-    for (let i = 0; i < 4; i++) g.fillRect(W - TILE - 10 + i * 9, 8 * TILE + 10, 7, 6);
+    ['E','X','I','T'].forEach((_, i) => g.fillRect(dX - 4 + i * 10, dY - 17, 6, 8));
 
     // Dark soil grow patch
     for (let x = 7; x <= 10; x++) for (let y = 10; y <= 13; y++) drawTile(g, x, y, 0x3a1a00, 0x6a3a10);
@@ -907,6 +932,97 @@ class HomeScene extends Phaser.Scene {
       g.fillStyle(0xffffff, 0.4);
       g.lineBetween(480, 42, 480, 30); // chain
     }
+
+    // === CHAIR (left side near rug) ===
+    const chX = 2 * TILE + 10, chY = 5 * TILE + 8;
+    g.fillStyle(0x6b3a1b, 1);
+    g.fillRect(chX, chY - 20, 6, 22); g.fillRect(chX + 22, chY - 20, 6, 22); // back legs
+    g.fillRect(chX - 2, chY - 22, 30, 6);                                      // backrest
+    g.fillStyle(0x8b5a2b, 1); g.fillRect(chX - 2, chY, 30, 8);                // seat
+    g.fillStyle(0xcc3344, 0.75); g.fillRoundedRect(chX - 1, chY, 28, 7, 2);   // cushion
+    g.fillStyle(0x6b3a1b, 1);
+    g.fillRect(chX, chY + 8, 5, 18); g.fillRect(chX + 23, chY + 8, 5, 18);   // front legs
+
+    // === POWER STRIP (bottom-left along wall) ===
+    const psX = 2 * TILE + 4, psY = H - 2 * TILE - 12;
+    g.fillStyle(0x2a2a2a, 1); g.fillRect(psX, psY, 130, 16);
+    g.fillStyle(0x3a3a3a, 1); g.fillRect(psX + 2, psY + 2, 126, 12);
+    for (let pi = 0; pi < 5; pi++) {
+      g.fillStyle(0x111111, 1); g.fillRect(psX + 16 + pi * 22, psY + 4, 12, 8);
+    }
+    g.fillStyle(0xff4400, 1); g.fillCircle(psX + 8, psY + 8, 3);  // power LED
+    g.lineStyle(2, 0x222222, 0.8);
+    g.lineBetween(psX + 65, psY + 16, psX + 65, psY + 28);        // cord
+
+    // === NUTRIENT BOTTLES near grow zone ===
+    const nbX = 6 * TILE + 6, nbY = 11 * TILE + 8;
+    const bcols = [0x44aa22, 0x2244bb, 0xaaaa00];
+    for (let bi = 0; bi < 3; bi++) {
+      g.fillStyle(bcols[bi], 1);   g.fillRoundedRect(nbX + bi * 19, nbY, 13, 32, 3);
+      g.fillStyle(0xffffff, 0.3);  g.fillRect(nbX + bi * 19 + 2, nbY + 6, 5, 10);
+      g.fillStyle(0xdddddd, 1);    g.fillRoundedRect(nbX + bi * 19 + 1, nbY - 8, 11, 9, 2);
+    }
+
+    // === DIGITAL TIMER (right of grow light) ===
+    const tmX = 12 * TILE + 2, tmY = 9 * TILE + 10;
+    g.fillStyle(0x1a1a1a, 1); g.fillRoundedRect(tmX, tmY, 54, 24, 3);
+    g.fillStyle(0x001a00, 1); g.fillRect(tmX + 3, tmY + 3, 48, 15);
+    g.fillStyle(0x44ff44, 0.85);
+    for (let d = 0; d < 4; d++) {                  // 4 digit segments
+      const sx = tmX + 6 + d * 11 + (d >= 2 ? 4 : 0);
+      g.fillRect(sx, tmY + 4, 7, 2);               // top
+      g.fillRect(sx, tmY + 10, 7, 2);              // mid
+      g.fillRect(sx, tmY + 16, 7, 2);              // bot
+      g.fillRect(sx, tmY + 6, 2, 4);               // top-left
+      g.fillRect(sx + 5, tmY + 6, 2, 4);           // top-right
+    }
+    g.fillRect(tmX + 26, tmY + 7, 2, 2); g.fillRect(tmX + 26, tmY + 12, 2, 2); // colon
+
+    // === DRYING RACK (right-center wall area) ===
+    const drX = W - 215, drY = 50;
+    g.fillStyle(0x5a3a10, 1);
+    g.fillRect(drX, drY, 5, 110);     g.fillRect(drX + 120, drY, 5, 110); // uprights
+    g.fillRect(drX - 4, drY + 8, 132, 6);                                  // rail 1
+    g.fillRect(drX - 4, drY + 48, 132, 6);                                 // rail 2
+    g.fillRect(drX - 4, drY + 88, 132, 6);                                 // rail 3
+    for (let hi = 0; hi < 5; hi++) {       // top rail buds
+      const hx = drX + 8 + hi * 23, hy = drY + 14;
+      g.lineStyle(1.5, 0x6b4010, 0.8); g.lineBetween(hx + 5, hy, hx + 5, hy + 28);
+      g.fillStyle(0x336611, 1); g.fillEllipse(hx + 5, hy + 35, 11, 18);
+      g.fillStyle(0x44aa22, 1); g.fillEllipse(hx + 5, hy + 28, 9, 13);
+      g.fillStyle(0xffffff, 0.45); g.fillCircle(hx + 3, hy + 26, 2);
+    }
+    for (let hi = 0; hi < 4; hi++) {       // middle rail buds
+      const hx = drX + 18 + hi * 28, hy = drY + 54;
+      g.lineStyle(1.5, 0x6b4010, 0.7); g.lineBetween(hx + 5, hy, hx + 5, hy + 24);
+      g.fillStyle(0x2d8800, 1); g.fillEllipse(hx + 5, hy + 30, 10, 15);
+      g.fillStyle(0x44aa22, 0.8); g.fillEllipse(hx + 5, hy + 24, 8, 11);
+      g.fillStyle(0xffffff, 0.3); g.fillCircle(hx + 3, hy + 22, 2);
+    }
+
+    // === SAFE (bottom-right corner) ===
+    const sfX = W - 3 * TILE - 10, sfY = H - 4 * TILE - 4;
+    g.fillStyle(0x334455, 1); g.fillRoundedRect(sfX, sfY, 68, 70, 4);
+    g.fillStyle(0x445566, 1); g.fillRoundedRect(sfX + 2, sfY + 2, 64, 66, 3);
+    g.lineStyle(2, 0x223344, 1); g.strokeRoundedRect(sfX, sfY, 68, 70, 4);
+    // Combination dial
+    g.fillStyle(0x888888, 1); g.fillCircle(sfX + 30, sfY + 30, 16);
+    g.fillStyle(0x666666, 1); g.fillCircle(sfX + 30, sfY + 30, 12);
+    g.lineStyle(1.5, 0x999999, 0.7);
+    for (let t = 0; t < 8; t++) {
+      const r = (t / 8) * Math.PI * 2;
+      g.lineBetween(sfX + 30 + Math.cos(r) * 10, sfY + 30 + Math.sin(r) * 10,
+                    sfX + 30 + Math.cos(r) * 14, sfY + 30 + Math.sin(r) * 14);
+    }
+    g.fillStyle(0xaaaaaa, 1); g.fillCircle(sfX + 30, sfY + 30, 5);
+    g.lineStyle(2, 0xffffff, 0.8); g.lineBetween(sfX + 30, sfY + 30, sfX + 40, sfY + 26);
+    // Handle
+    g.fillStyle(0x888888, 1); g.fillRect(sfX + 50, sfY + 24, 12, 18);
+    g.fillStyle(0xaaaaaa, 1); g.fillRect(sfX + 52, sfY + 26, 8, 14);
+    // Hinges
+    g.fillStyle(0x556677, 1); g.fillRect(sfX + 2, sfY + 8, 7, 10); g.fillRect(sfX + 2, sfY + 50, 7, 10);
+    // Combination knob
+    g.fillStyle(0xdddd88, 0.8); g.fillCircle(sfX + 30, sfY + 58, 5);
 
     // === Greenhouse glass effect (location upgrade) ===
     if (loc === 'Greenhouse') {
@@ -1138,6 +1254,7 @@ class HomeScene extends Phaser.Scene {
   harvest() {
     if (!G.plant || this.growPercent() < 1) return;
     const y = G.plant.yieldG;
+    const strainName = G.plant.strain;
     G.stash += y;
     G.plant = null;
     document.getElementById('grow-bar').style.width = '0%';
@@ -1152,7 +1269,7 @@ class HomeScene extends Phaser.Scene {
     if (this.glowTween)  { this.glowTween.stop();  this.glowTween = null; }
     if (this.glowLayer)   this.glowLayer.setAlpha(0);
     this.drawPlantStage(0);
-    floatText(this, this.plantG.x, this.plantG.y - 40, `+${y}g 🌿`, '#44ff44');
+    floatText(this, this.plantG.x, this.plantG.y - 40, `+${y}g ${strainName}`, '#44ff44');
     notify(`🌿 Harvested ${y}g!`);
     updateHUD();
   }
@@ -1190,7 +1307,6 @@ class HomeScene extends Phaser.Scene {
     if (this.cursors.up.isDown    || this.wasd.up.isDown)    { dy -= speed; usingKeys = true; }
     if (this.cursors.down.isDown  || this.wasd.down.isDown)  { dy += speed; usingKeys = true; }
 
-    // Click-to-move: keys override click target
     if (usingKeys) {
       this.moveTarget = null;
       this.clickMarker.clear();
@@ -1208,24 +1324,48 @@ class HomeScene extends Phaser.Scene {
 
     const nx = Phaser.Math.Clamp(this.player.x + dx, TILE, W - TILE);
     const ny = Phaser.Math.Clamp(this.player.y + dy, TILE, H - TILE);
+
+    // Idle bob — applied visually only, doesn't affect collision
+    const moving = dx !== 0 || dy !== 0;
+    const bob = moving ? 0 : Math.sin(this.time.now / 350) * 2.2;
     this.player.x = nx;
-    this.player.y = ny;
+    this.player.y = ny + bob;
 
     if (dx < 0) this.player.scaleX = -1;
     else if (dx > 0) this.player.scaleX = 1;
 
-    // Door: right side
-    if (nx > W - 80 && ny > H / 2 - 60 && ny < H / 2 + 60) {
-      if (!this.hKeyDown) {
-        this.hKeyDown = true;
-        this.scene.start('StreetScene');
-        return;
+    // === EXIT DOOR proximity ===
+    const atDoor = nx > W - TILE - 30 && ny > 9 * TILE && ny < 12 * TILE;
+    if (atDoor) {
+      this.exitHint.setVisible(true);
+      if (Phaser.Input.Keyboard.JustDown(this.eKey) ||
+          Phaser.Input.Keyboard.JustDown(this.hKey)) {
+        this.exitHint.setVisible(false);
+        this.scene.start('StreetScene'); return;
       }
-    } else this.hKeyDown = false;
+    } else {
+      this.exitHint.setVisible(false);
+    }
 
-    if (Phaser.Input.Keyboard.JustDown(this.eKey)) this.interactPlant();
+    // === GROW ZONE proximity (show hint, plant interaction) ===
+    const atGrow = nx > 7 * TILE - 20 && nx < 11 * TILE + 20 &&
+                   ny > 10 * TILE - 20 && ny < 14 * TILE + 20;
+    if (atGrow && !atDoor) {
+      if (!G.plant) {
+        this.growHint.setText('[E] Plant here').setVisible(true);
+      } else if (this.growPercent() >= 1) {
+        this.growHint.setText('[E] Harvest! ✨').setVisible(true);
+      } else {
+        this.growHint.setText(`Growing ${Math.floor(this.growPercent() * 100)}%`).setVisible(true);
+      }
+      if (Phaser.Input.Keyboard.JustDown(this.eKey)) this.interactPlant();
+    } else {
+      this.growHint.setVisible(false);
+      if (!atGrow && !atDoor && Phaser.Input.Keyboard.JustDown(this.eKey)) this.interactPlant();
+    }
+
     if (Phaser.Input.Keyboard.JustDown(this.bKey)) openShop();
-    if (Phaser.Input.Keyboard.JustDown(this.hKey)) this.scene.start('StreetScene');
+    if (Phaser.Input.Keyboard.JustDown(this.iKey)) openInventory();
   }
 }
 
@@ -1262,6 +1402,7 @@ class StreetScene extends Phaser.Scene {
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.hKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.H);
     this.bKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
+    this.iKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I);
 
     this.nearNPC = null;
 
@@ -1621,6 +1762,7 @@ class StreetScene extends Phaser.Scene {
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.bKey)) openShop();
+    if (Phaser.Input.Keyboard.JustDown(this.iKey)) openInventory();
 
     // === NPC PROXIMITY (street wanderers) ===
     if (!nearDoor) {
@@ -1655,7 +1797,9 @@ class StreetScene extends Phaser.Scene {
             G.totalEarned += total; G.totalSales++;
             G.heat = Math.min(100, G.heat + 15);
             closeDialog();
+            const repGain = Math.floor(total / 50);
             floatText(this, this.player.x, this.player.y - 40, `+$${total}`, '#ffd700');
+            if (repGain > 0) floatText(this, this.player.x, this.player.y - 65, `Rep +${repGain}`, '#aaaaff');
             notify(`💵 Sold ${want}g for $${total}!`);
             updateHUD();
             checkProgressionUnlocks(this);
@@ -1685,7 +1829,9 @@ class StreetScene extends Phaser.Scene {
             G.totalEarned += total; G.totalSales++;
             G.heat = Math.min(100, G.heat + 12);
             closeDialog();
+            const repGain = Math.floor(total / 50);
             floatText(this, this.player.x, this.player.y - 40, `+$${total}`, '#ffd700');
+            if (repGain > 0) floatText(this, this.player.x, this.player.y - 65, `Rep +${repGain}`, '#aaaaff');
             notify(`💵 Sold ${want}g for $${total}!`);
             updateHUD();
             checkProgressionUnlocks(this);
@@ -1916,11 +2062,76 @@ function floatText(scene, x, y, text, color) {
 }
 
 function openInventory() {
-  const stash = G.stash;
-  const strain = SHOP.strains.find(s => s.id === G.activeStrain);
-  const equip  = SHOP.equipment.find(e => e.id === G.activeEquipment);
-  const loc    = SHOP.locations.find(l => l.id === G.activeLocation);
-  notify(`🎒 Stash: ${stash}g | ${strain?.name} | ${equip?.name} | ${loc?.name}`);
+  const panel = document.getElementById('inventory-panel');
+  const content = document.getElementById('inventory-content');
+
+  const row = (label, val, tag) =>
+    `<div class="inv-row"><span>${label}</span><span><span class="inv-qty">${val}</span>${tag ? `<span class="inv-active-tag">${tag}</span>` : ''}</span></div>`;
+
+  const strainRows = G.owned.strains.map(id => {
+    const s = SHOP.strains.find(x => x.id === id);
+    return row(s?.name || id, '', id === G.activeStrain ? '▶ ACTIVE' : '');
+  }).join('');
+
+  const equipRows = G.owned.equipment.map(id => {
+    const e = SHOP.equipment.find(x => x.id === id);
+    return row(e?.name || id, '', id === G.activeEquipment ? '▶ ACTIVE' : '');
+  }).join('');
+
+  const locRows = G.owned.locations.map(id => {
+    const l = SHOP.locations.find(x => x.id === id);
+    return row(l?.name || id, '', id === G.activeLocation ? '▶ ACTIVE' : '');
+  }).join('');
+
+  const cosRows = G.owned.cosmetics.length
+    ? G.owned.cosmetics.map(id => `<div class="inv-row"><span>✨ ${id}</span></div>`).join('')
+    : `<div class="inv-empty">None yet — visit the shop</div>`;
+
+  const nextLoc = SHOP.locations.find(l => !G.owned.locations.includes(l.id));
+  const nextEquip = SHOP.equipment.find(e => !G.owned.equipment.includes(e.id));
+  const nextUpgrade = nextLoc || nextEquip;
+  const upgradeRow = nextUpgrade
+    ? `<div class="inv-row" style="color:#5a9a5a">
+        <span>Next: ${nextUpgrade.name}</span>
+        <span class="inv-qty">${nextUpgrade.price - G.cash > 0 ? `Need $${nextUpgrade.price - G.cash} more` : '✅ Can buy now!'}</span>
+       </div>`
+    : `<div class="inv-row" style="color:#4caf50"><span>🏆 Fully upgraded!</span></div>`;
+
+  content.innerHTML = `
+    <div class="inv-section">
+      <div class="inv-section-title">── STASH ───────────────────────</div>
+      ${row('🌿 Total Stash', G.stash + 'g')}
+      ${row('💵 Cash', '$' + G.cash)}
+      ${row('💵 Lifetime Earned', '$' + G.totalEarned)}
+      ${row('🤝 Sales Made', G.totalSales)}
+      ${row('⭐ Rep Level', Math.floor(G.totalEarned / 50))}
+    </div>
+    <div class="inv-section">
+      <div class="inv-section-title">── STRAINS ─────────────────────</div>
+      ${strainRows}
+    </div>
+    <div class="inv-section">
+      <div class="inv-section-title">── EQUIPMENT ───────────────────</div>
+      ${equipRows}
+    </div>
+    <div class="inv-section">
+      <div class="inv-section-title">── LOCATIONS ───────────────────</div>
+      ${locRows}
+    </div>
+    <div class="inv-section">
+      <div class="inv-section-title">── COSMETICS ───────────────────</div>
+      ${cosRows}
+    </div>
+    <div class="inv-section">
+      <div class="inv-section-title">── NEXT UPGRADE ────────────────</div>
+      ${upgradeRow}
+    </div>
+  `;
+  panel.style.display = 'block';
+}
+
+function closeInventory() {
+  document.getElementById('inventory-panel').style.display = 'none';
 }
 
 function updateHUD() {
