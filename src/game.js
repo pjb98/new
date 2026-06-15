@@ -1356,11 +1356,8 @@ class HomeScene extends Phaser.Scene {
     const ny = Phaser.Math.Clamp(this.canonY + dy, TILE, H - TILE);
     this.canonY = ny;
 
-    // Idle bob — applied visually only, doesn't affect collision
-    const moving = dx !== 0 || dy !== 0;
-    const bob = moving ? 0 : Math.sin(this.time.now / 350) * 2.2;
     this.player.x = nx;
-    this.player.y = ny + bob;
+    this.player.y = ny;
 
     if (dx < 0) this.player.scaleX = -1;
     else if (dx > 0) this.player.scaleX = 1;
