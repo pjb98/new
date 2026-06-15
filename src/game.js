@@ -1574,11 +1574,12 @@ class StreetScene extends Phaser.Scene {
     // === HOUSES — 3D detailed facades (drawn over background trees) ===
     STREET_HOUSES.forEach(h => drawDetailedHouse(g, h));
 
-    // === FOREGROUND TREES (in front of houses, between house row and sidewalk) ===
+    // === FOREGROUND TREES (in front of houses, placed in gap zones between houses) ===
+    // Gap zones: 0-32, 160-224, 384-448, 576-640, 800-864 (never in front of doors)
     [
       [12, 215], [192, 220], [415, 212], [607, 218], [832, 214],
-      [100, 232], [305, 225], [510, 228], [715, 222], [910, 220],
-      [155, 240], [660, 235],
+      [20, 235], [175, 230], [400, 228], [595, 232], [820, 230],
+      [155, 242], [670, 238],
     ].forEach(([tx, ty]) => drawDetailedTree(g, tx, ty));
 
     // === FOUNTAIN PLAZA ===
