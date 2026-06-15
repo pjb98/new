@@ -27,6 +27,7 @@ const G = {
   speedMult: 1,
 
   // Progression
+  lightsOn: true,
   homeHouseIdx: -1,       // -1 = not chosen yet
   totalEarned: 0,         // lifetime $ earned from sales
   unlockedNPCCount: 1,    // # of customer houses accessible (max 4)
@@ -757,21 +758,52 @@ class HomeScene extends Phaser.Scene {
       stroke: '#000000', strokeThickness: 1,
     }).setDepth(8).setOrigin(0.5, 1).setVisible(false);
 
-    // ---- Shop sign ----
-    this.shopZone = this.add.text(60, 60, '🛒 SHOP', {
+    // ---- Shop sign (repositioned to not overlap shelf) ----
+    this.shopZone = this.add.text(205, 42, '🛒 SHOP', {
       fontSize: '13px', color: '#ffffff', fontFamily: 'Courier New',
       backgroundColor: '#cc5500', padding: { x: 6, y: 4 },
     }).setInteractive({ useHandCursor: true }).setDepth(3);
     this.shopZone.on('pointerdown', () => openShop());
+
+    // ---- Grow lights layer (separate from static room so it can toggle) ----
+    if (G.lightsOn === undefined) G.lightsOn = true;
+    this.lightsG    = this.add.graphics().setDepth(3);
+    this.lightGlowG = this.add.graphics().setDepth(2);
+    this.lightTween = null;
+    this.drawLights();
+
+    // ---- Light toggle hint ----
+    const glX = 7 * TILE, glY = 9 * TILE + 6, glW = 4 * TILE;
+    this.lightHint = this.add.text(glX + glW / 2, glY - 6, '💡 click to toggle', {
+      fontSize: '9px', color: '#cc88ff', fontFamily: 'Courier New',
+    }).setDepth(8).setOrigin(0.5, 1).setAlpha(0.7);
+
+    // Light click zone over the bar
+    this.add.zone(glX + glW / 2, glY + 6, glW + 12, 22)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        G.lightsOn = !G.lightsOn;
+        this.drawLights();
+        floatText(this, glX + glW / 2, glY - 20, G.lightsOn ? '💡 ON' : '💡 OFF',
+          G.lightsOn ? '#cc88ff' : '#445544');
+      });
+
+    // ---- Nutrient bottle labels (N / P / K) ----
+    const nbX = 6 * TILE + 6, nbY = 11 * TILE + 8;
+    ['N', 'P', 'K'].forEach((label, i) => {
+      this.add.text(nbX + i * 19 + 6, nbY + 14, label, {
+        fontSize: '8px', color: '#ffffff', fontFamily: 'Courier New', fontStyle: 'bold',
+      }).setDepth(4).setOrigin(0.5, 0.5);
+    });
+    this.add.text(nbX + 19, nbY - 14, 'NUTRIENTS', {
+      fontSize: '7px', color: '#aaffaa', fontFamily: 'Courier New', letterSpacing: 1,
+    }).setDepth(4).setOrigin(0.5, 1);
 
     // ---- Grow zone interaction label (shown when near, no plant) ----
     this.growHint = this.add.text(290, 9 * TILE - 10, '[E] Plant here', {
       fontSize: '10px', color: '#88ff44', fontFamily: 'Courier New',
       backgroundColor: 'rgba(0,20,0,0.8)', padding: { x: 5, y: 3 },
     }).setDepth(8).setOrigin(0.5, 1).setVisible(false);
-
-    // ---- Idle bob animation ----
-    this.playerBobBase = this.player.y;
 
     updateHUD();
   }
@@ -860,24 +892,14 @@ class HomeScene extends Phaser.Scene {
       g.strokeRect(2 * TILE + 2, 6 * TILE + 2, 4 * TILE - 4, 4 * TILE - 4);
     }
 
-    // === LED GROW LIGHT BAR above grow zone ===
+    // === LED GROW LIGHT BAR housing (LEDs drawn separately on lightsG layer) ===
     const glX = 7 * TILE, glY = 9 * TILE + 6, glW = 4 * TILE;
     g.fillStyle(0x222222, 1); g.fillRect(glX - 6, glY, glW + 12, 12); // housing
     g.fillStyle(0x444444, 1); g.fillRect(glX - 6, glY, glW + 12, 4);  // top trim
-    for (let i = 0; i < 8; i++) {                                      // red LEDs
-      g.fillStyle(0xdd1100, 1); g.fillRect(glX + i * 16 + 2, glY + 3, 8, 7);
-      g.fillStyle(0xff4422, 0.6); g.fillRect(glX + i * 16 + 3, glY + 3, 5, 3); // highlight
-    }
-    for (let i = 0; i < 4; i++) {                                      // blue LEDs
-      g.fillStyle(0x3333ee, 1); g.fillRect(glX + i * 32 + 10, glY + 3, 6, 7);
-    }
     // Cables hanging from light
     g.lineStyle(2, 0x333333, 0.9);
     g.lineBetween(glX + 10, glY, glX + 10, glY - 18);
     g.lineBetween(glX + glW - 10, glY, glX + glW - 10, glY - 18);
-    // Purple grow glow under LEDs
-    g.fillStyle(0xcc44aa, 0.12);
-    g.fillRect(glX - 12, glY + 12, glW + 24, 80);
 
     // === WALL SHELF (left wall) ===
     const shX = 36, shY = 78, shW = 120;
@@ -1006,8 +1028,8 @@ class HomeScene extends Phaser.Scene {
     }
     g.fillRect(tmX + 26, tmY + 7, 2, 2); g.fillRect(tmX + 26, tmY + 12, 2, 2); // colon
 
-    // === DRYING RACK (right-center wall area) ===
-    const drX = W - 215, drY = 50;
+    // === DRYING RACK (moved left so it doesn't overlap fan at W-118) ===
+    const drX = 620, drY = 50;
     g.fillStyle(0x5a3a10, 1);
     g.fillRect(drX, drY, 5, 110);     g.fillRect(drX + 120, drY, 5, 110); // uprights
     g.fillRect(drX - 4, drY + 8, 132, 6);                                  // rail 1
@@ -1325,6 +1347,40 @@ class HomeScene extends Phaser.Scene {
       const t = this.add.text(pos[0], pos[1], EMOJIS[id] || '⭐', { fontSize: '28px' }).setDepth(2);
       this.cosmeticSprites.push(t);
     });
+  }
+
+  drawLights() {
+    const g  = this.lightsG;
+    const gg = this.lightGlowG;
+    g.clear();
+    gg.clear();
+    const glX = 7 * TILE, glY = 9 * TILE + 6, glW = 4 * TILE;
+    if (G.lightsOn) {
+      for (let i = 0; i < 8; i++) {
+        g.fillStyle(0xdd1100, 1);  g.fillRect(glX + i * 16 + 2, glY + 3, 8, 7);
+        g.fillStyle(0xff4422, 0.6); g.fillRect(glX + i * 16 + 3, glY + 3, 5, 3);
+      }
+      for (let i = 0; i < 4; i++) {
+        g.fillStyle(0x3333ee, 1); g.fillRect(glX + i * 32 + 10, glY + 3, 6, 7);
+      }
+      gg.fillStyle(0xcc44aa, 1);
+      gg.fillRect(glX - 12, glY + 12, glW + 24, 90);
+      gg.alpha = 0.12;
+      if (this.lightTween) this.lightTween.stop();
+      this.lightTween = this.tweens.add({
+        targets: gg, alpha: { from: 0.07, to: 0.22 },
+        yoyo: true, repeat: -1, duration: 900, ease: 'Sine.easeInOut',
+      });
+    } else {
+      for (let i = 0; i < 8; i++) {
+        g.fillStyle(0x220000, 1); g.fillRect(glX + i * 16 + 2, glY + 3, 8, 7);
+      }
+      for (let i = 0; i < 4; i++) {
+        g.fillStyle(0x000022, 1); g.fillRect(glX + i * 32 + 10, glY + 3, 6, 7);
+      }
+      if (this.lightTween) { this.lightTween.stop(); this.lightTween = null; }
+      gg.alpha = 0;
+    }
   }
 
   update() {
