@@ -321,22 +321,21 @@
     scrollbar-width: thin;
     scrollbar-color: #2d7a2d #0a0f0a;
 
-    /* Inventory panel */
+    /* Inventory panel — right-side drawer */
     #inventory-panel {
       position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 440px;
+      top: 0; right: 0;
+      width: 280px;
+      height: 100%;
       background: rgba(4,14,4,0.97);
-      border: 2px solid #2d7a2d;
-      border-radius: 12px;
-      padding: 20px;
+      border-left: 2px solid #2d7a2d;
+      padding: 16px 14px;
       color: #b0ffb0;
       font-family: 'Courier New', monospace;
       z-index: 100;
       display: none;
-      max-height: 78vh;
       overflow-y: auto;
+      box-sizing: border-box;
     }
     #inventory-panel h2 { color: #4caf50; margin-bottom: 14px; font-size: 16px; }
     .inv-section { margin-bottom: 12px; }
