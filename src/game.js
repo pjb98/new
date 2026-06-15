@@ -694,6 +694,7 @@ class HomeScene extends Phaser.Scene {
     this.drawPlayer(this.player);
     this.player.x = 200;
     this.player.y = 300;
+    this.canonY = 300;
 
     // ---- Plant sprite ----
     this.plantG = this.add.graphics().setDepth(2);
@@ -1340,25 +1341,23 @@ class HomeScene extends Phaser.Scene {
       this.moveTarget = null;
       this.clickMarker.clear();
     } else if (this.moveTarget) {
-      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.moveTarget.x, this.moveTarget.y);
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.canonY, this.moveTarget.x, this.moveTarget.y);
       if (dist < 4) {
         this.moveTarget = null;
         this.clickMarker.clear();
       } else {
-        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.moveTarget.x, this.moveTarget.y);
+        const angle = Phaser.Math.Angle.Between(this.player.x, this.canonY, this.moveTarget.x, this.moveTarget.y);
         dx = Math.cos(angle) * speed;
         dy = Math.sin(angle) * speed;
       }
     }
 
     const nx = Phaser.Math.Clamp(this.player.x + dx, TILE, W - TILE);
-    const ny = Phaser.Math.Clamp(this.player.y + dy, TILE, H - TILE);
+    const ny = Phaser.Math.Clamp(this.canonY + dy, TILE, H - TILE);
+    this.canonY = ny;
 
-    // Idle bob — applied visually only, doesn't affect collision
-    const moving = dx !== 0 || dy !== 0;
-    const bob = moving ? 0 : Math.sin(this.time.now / 350) * 2.2;
     this.player.x = nx;
-    this.player.y = ny + bob;
+    this.player.y = ny;
 
     if (dx < 0) this.player.scaleX = -1;
     else if (dx > 0) this.player.scaleX = 1;
